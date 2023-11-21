@@ -1,0 +1,9 @@
+.build/
+obj/
+*.obj
+*.o
+*.pdb
+*.exe
+*.blend1
+.vscode/
+__pycache__/
