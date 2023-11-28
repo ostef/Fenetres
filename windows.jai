@@ -1,9 +1,12 @@
-#import "Common";
+#import "Basic";
 
 #scope_file
 
-Win32 :: #import "Win32";
-Windows_Utils :: #import "Windows_Utils";
+Win32 :: #import "Win32" (
+    GDI_Basics = true,
+    Windows_And_Messaging = true,
+    Input = true,
+);
 
 g_all_windows : [..]*Window;
 g_wndclass : Win32.WNDCLASSEXW;
@@ -31,43 +34,137 @@ g_message_queue : [..]Message;
 
 g_initialized : bool;
 
+#scope_file
+
+g_error_wide_buffer : [128]u16;
+g_error_utf8_buffer : [512]u8;
+
+GetLastErrorString :: inline () -> string #must
+{
+    return GetErrorString (Win32.GetLastError ());
+}
+
+GetErrorString :: inline (error_code : u32) -> string #must
+{
+    wide_count := Win32.FormatMessageW (
+        .FORMAT_MESSAGE_FROM_SYSTEM | .FORMAT_MESSAGE_IGNORE_INSERTS,
+        null,
+        error_code,
+        Win32.MAKELANGID (0, 0),
+        g_error_wide_buffer.data,
+        g_error_wide_buffer.count,
+        null
+    );
+
+    utf8_count := Win32.WideCharToMultiByte (
+        Win32.CP_UTF8,
+        0,
+        g_error_wide_buffer.data,
+        cast (s32) wide_count,
+        cast (*u8) g_error_utf8_buffer.data,
+        g_error_utf8_buffer.count,
+        null,
+        null
+    );
+
+    result : string = ---;
+    result.data  = g_error_utf8_buffer.data;
+    result.count = utf8_count;
+
+    return result;
+}
+
+// The result is null terminated even though a Jai string is returned
+WideToUtf8 :: (data : *u16, allocator := context.allocator) -> string #must, success : bool
+{
+    result_length := Win32.WideCharToMultiByte (Win32.CP_UTF8, 0, data, -1, null, 0, null, null);
+    if result_length <= 0
+        return "", false;
+
+    utf8_data := cast (*u8) alloc (result_length, allocator);
+
+    written := Win32.WideCharToMultiByte (Win32.CP_UTF8, 0, data, -1, utf8_data, result_length, null, null);
+    if written > 0
+    {
+        str : string = ---;
+        str.data  = utf8_data;
+        str.count = written - 1;
+
+        return str, true;
+    }
+
+    return "", false;
+}
+
+// The result is null terminated
+Utf8ToWide :: (utf8_str : string, allocator := context.allocator) -> wide_str : *u16 #must, length : s32
+{
+    if !utf8_str
+    {
+        wide_str := cast (*u16) alloc (size_of (u16), allocator);
+        wide_str[0] = 0;
+
+        return wide_str, 0;
+    }
+
+    result_length := Win32.MultiByteToWideChar (Win32.CP_UTF8, 0, utf8_str.data, cast (s32) utf8_str.count, null, 0);
+    if result_length <= 0
+        return null, 0;
+
+    wide_str := cast (*u16) alloc ((result_length + 1) * size_of (u16), allocator);
+    written := Win32.MultiByteToWideChar (Win32.CP_UTF8, 0, utf8_str.data, cast (s32) utf8_str.count, wide_str, result_length);
+    if written > 0
+    {
+        wide_str[written] = 0;
+
+        return wide_str, written;
+    }
+
+    return null, 0;
+}
+
 InitializeWindowClassesAndCursors :: ()
 {
+    if g_initialized
+        return;
+
     {
         using g_wndclass;
 
         cbSize        = size_of (Win32.WNDCLASSEXW);
-        style         = Win32.CS_DBLCLKS | Win32.CS_OWNDC;
+        style         = .CS_DBLCLKS | .CS_OWNDC;
         lpfnWndProc   = xx WindowProc;
         hInstance     = Win32.GetModuleHandleW (null);
-        lpszClassName = Windows_Utils.Utf8ToWide ("WindowClass");
-        if !Win32.RegisterClassExW (*g_wndclass)
-            ShowErrorBox ("RegisterClassExW for WindowClass failed: %", Windows_Utils.GetLastErrorString ());
+        lpszClassName = Utf8ToWide ("WindowClass");
+
+        ok := cast (bool) Win32.RegisterClassExW (*g_wndclass);
+        assert (ok, "RegisterClassExW for WindowClass failed: %", GetLastErrorString ());
     }
     {
         using g_custom_caption_wndclass;
 
         cbSize        = size_of (Win32.WNDCLASSEXW);
-        style         = Win32.CS_DBLCLKS | Win32.CS_OWNDC;
+        style         = .CS_DBLCLKS | .CS_OWNDC;
         lpfnWndProc   = xx CustomCaptionWindowProc;
         hInstance     = Win32.GetModuleHandleW (null);
-        lpszClassName = Windows_Utils.Utf8ToWide ("CustomCaptionWindowClass");
-        if !Win32.RegisterClassExW (*g_custom_caption_wndclass)
-            ShowErrorBox ("RegisterClassExW for CustomCaptionWindowClass failed: %", Windows_Utils.GetLastErrorString ());
+        lpszClassName = Utf8ToWide ("CustomCaptionWindowClass");
+
+        ok := cast (bool) Win32.RegisterClassExW (*g_custom_caption_wndclass);
+        assert(ok, "RegisterClassExW for CustomCaptionWindowClass failed: %", GetLastErrorString ());
     }
     {
-        g_cursors.arrow = Win32.LoadCursorW (null, cast (*u16) Win32.IDC_ARROW);
-        g_cursors.arrow_busy = Win32.LoadCursorW (null, cast (*u16) Win32.IDC_APPSTARTING);
-        g_cursors.busy = Win32.LoadCursorW (null, cast (*u16) Win32.IDC_WAIT);
-        g_cursors.cross = Win32.LoadCursorW (null, cast (*u16) Win32.IDC_CROSS);
-        g_cursors.hand = Win32.LoadCursorW (null, cast (*u16) Win32.IDC_HAND);
-        g_cursors.ibeam = Win32.LoadCursorW (null, cast (*u16) Win32.IDC_IBEAM);
-        g_cursors.size = Win32.LoadCursorW (null, cast (*u16) Win32.IDC_SIZEALL);
-        g_cursors.size_nwse = Win32.LoadCursorW (null, cast (*u16) Win32.IDC_SIZENWSE);
-        g_cursors.size_nesw = Win32.LoadCursorW (null, cast (*u16) Win32.IDC_SIZENESW);
-        g_cursors.size_horizontal = Win32.LoadCursorW (null, cast (*u16) Win32.IDC_SIZEWE);
-        g_cursors.size_vertical = Win32.LoadCursorW (null, cast (*u16) Win32.IDC_SIZENS);
-        g_cursors.not_allowed = Win32.LoadCursorW (null, cast (*u16) Win32.IDC_NO);
+        g_cursors.arrow = Win32.LoadCursorW (null, Win32.IDC_ARROW);
+        g_cursors.arrow_busy = Win32.LoadCursorW (null, Win32.IDC_APPSTARTING);
+        g_cursors.busy = Win32.LoadCursorW (null, Win32.IDC_WAIT);
+        g_cursors.cross = Win32.LoadCursorW (null, Win32.IDC_CROSS);
+        g_cursors.hand = Win32.LoadCursorW (null, Win32.IDC_HAND);
+        g_cursors.ibeam = Win32.LoadCursorW (null, Win32.IDC_IBEAM);
+        g_cursors.size = Win32.LoadCursorW (null, Win32.IDC_SIZEALL);
+        g_cursors.size_nwse = Win32.LoadCursorW (null, Win32.IDC_SIZENWSE);
+        g_cursors.size_nesw = Win32.LoadCursorW (null, Win32.IDC_SIZENESW);
+        g_cursors.size_horizontal = Win32.LoadCursorW (null, Win32.IDC_SIZEWE);
+        g_cursors.size_vertical = Win32.LoadCursorW (null, Win32.IDC_SIZENS);
+        g_cursors.not_allowed = Win32.LoadCursorW (null, Win32.IDC_NO);
     }
 
     g_initialized = true;
@@ -104,12 +201,12 @@ GetWindowFromPlatformHandle :: inline (hwnd : Win32.HWND) -> *Window #must #no_c
 
 ShowErrorBox :: inline (parent : *Window, fmt_str : string, args : ..Any)
 {
-    TemporaryStorageScope ();
+    auto_release_temp ();
 
-    str := FormatString (Temp, fmt_str, ..args);
+    str := tprint (fmt_str, ..args);
     Win32.MessageBoxW (
         ifx parent then parent.hwnd else null,
-        Windows_Utils.Utf8ToWide (str, Temp),
+        Utf8ToWide (str, temp),
         null,
         Win32.MB_ICONERROR | Win32.MB_OK
     );
@@ -185,7 +282,7 @@ GetDisplays :: inline (allocator := context.allocator) -> []DisplayInfo #must
     Win32.EnumDisplayMonitors (null, null, CountDisplayMonitors, *count);
 
     user_data : UserData;
-    user_data.displays = AllocArray (DisplayInfo, count, allocator);
+    user_data.displays = NewArray (count, DisplayInfo, allocator = allocator);
     Win32.EnumDisplayMonitors (null, null, AddDisplay, *user_data);
 
     return user_data.displays;
@@ -218,25 +315,25 @@ CreateWindow :: (
         height = Win32.CW_USEDEFAULT;
 
     wndclass := ifx flags & .Custom_Caption then *g_custom_caption_wndclass else *g_wndclass;
-    style : u32 = Win32.WS_OVERLAPPEDWINDOW;
-    ex_style : u32 = Win32.WS_EX_APPWINDOW;
+    style : Win32.WINDOW_STYLE = .WS_OVERLAPPEDWINDOW;
+    ex_style : Win32.WINDOW_EX_STYLE = .WS_EX_APPWINDOW;
 
     if flags & .Borderless
-        style = Win32.WS_POPUP;
+        style = .WS_POPUP;
     else if flags & .Custom_Caption
-        style = Win32.WS_THICKFRAME | Win32.WS_SYSMENU | Win32.WS_MAXIMIZEBOX | Win32.WS_MINIMIZEBOX;
+        style = .WS_THICKFRAME | .WS_SYSMENU | .WS_MAXIMIZEBOX | .WS_MINIMIZEBOX;
 
     if !(flags & .Hidden)
-        style |= Win32.WS_VISIBLE;
+        style |= .WS_VISIBLE;
 
     if flags & .No_Taskbar_Icon
-        ex_style = Win32.WS_EX_TOOLWINDOW;
+        ex_style = .WS_EX_TOOLWINDOW;
 
     if flags & .Topmost
-        ex_style |= Win32.WS_EX_TOPMOST;
+        ex_style |= .WS_EX_TOPMOST;
 
     if flags & .No_Resize
-        style ^= Win32.WS_THICKFRAME | Win32.WS_MAXIMIZEBOX;
+        style ^= .WS_THICKFRAME | .WS_MAXIMIZEBOX;
 
     rect : Win32.RECT;
     if x != Win32.CW_USEDEFAULT
@@ -259,7 +356,7 @@ CreateWindow :: (
     hwnd := Win32.CreateWindowExW (
         ex_style,
         wndclass.lpszClassName,
-        Windows_Utils.Utf8ToWide (title, Temp),
+        Utf8ToWide (title, temp),
         style,
         x,
         y,
@@ -278,13 +375,13 @@ CreateWindow :: (
     track.dwFlags = 0x02;
     Win32.TrackMouseEvent (*track);
 
-    window := Alloc (Window);
+    window := New (Window);
     window.hwnd = hwnd;
     window.caption_hit_test = extra.caption_hit_test;
     window.flags = flags;
 
-    Win32.SetWindowLongPtrW (hwnd, Win32.GWLP_USERDATA, cast (*s32) window);
-    ArrayPush (*g_all_windows, window);
+    Win32.SetWindowLongPtrW (hwnd, .GWLP_USERDATA, cast (s64) window);
+    array_add (*g_all_windows, window);
 
     return window;
 }
@@ -307,15 +404,15 @@ SwapBuffers :: inline (window : *Window) #no_context
 GetWindowTitle :: inline (window : *Window, allocator := context.allocator) -> string #must
 {
     len := Win32.GetWindowTextLengthW (window.hwnd) + 2;
-    wide_buffer := Alloc (u16, len, Temp);
+    wide_buffer := cast (*u16) alloc (size_of (u16) * len, temp);
     Win32.GetWindowTextW (window.hwnd, wide_buffer, len);
 
-    return Windows_Utils.WideToUtf8 (wide_buffer, allocator);
+    return WideToUtf8 (wide_buffer, allocator);
 }
 
 SetWindowTitle :: inline (window : *Window, title : string)
 {
-    wide_title := Windows_Utils.Utf8ToWide (title, Temp);
+    wide_title := Utf8ToWide (title, temp);
     Win32.SetWindowTextW (window.hwnd, wide_title);
 }
 
@@ -329,7 +426,7 @@ GetWindowPosition :: inline (window : *Window) -> x : s32, y : s32 #no_context
 
 SetWindowPosition :: inline (window : *Window, x : s32, y : s32) #no_context
 {
-    Win32.SetWindowPos (window.hwnd, null, x, y, 0, 0, Win32.SWP_NOSIZE | Win32.SWP_NOZORDER | Win32.SWP_NOACTIVATE);
+    Win32.SetWindowPos (window.hwnd, null, x, y, 0, 0, .SWP_NOSIZE | .SWP_NOZORDER | .SWP_NOACTIVATE);
 }
 
 GetWindowSize :: inline (window : *Window) -> width : s32, height : s32 #no_context
@@ -342,7 +439,7 @@ GetWindowSize :: inline (window : *Window) -> width : s32, height : s32 #no_cont
 
 SetWindowSize :: inline (window : *Window, width : s32, height : s32) #no_context
 {
-    Win32.SetWindowPos (window.hwnd, null, 0, 0, width, height, Win32.SWP_NOMOVE | Win32.SWP_NOZORDER | Win32.SWP_NOACTIVATE);
+    Win32.SetWindowPos (window.hwnd, null, 0, 0, width, height, .SWP_NOMOVE | .SWP_NOZORDER | .SWP_NOACTIVATE);
 }
 
 GetViewportPosition :: inline (window : *Window) -> width : s32, height : s32 #no_context
@@ -359,7 +456,7 @@ SetViewportPosition :: inline (window : *Window, x : s32, y : s32) #no_context
     rect := Win32.RECT.{x, y, x, y};
     Win32.AdjustWindowRectEx (*rect, style, 0, ex_style);
 
-    Win32.SetWindowPos (window.hwnd, null, rect.left, rect.top, 0, 0, Win32.SWP_NOZORDER | Win32.SWP_NOSIZE | Win32.SWP_NOACTIVATE);
+    Win32.SetWindowPos (window.hwnd, null, rect.left, rect.top, 0, 0, .SWP_NOZORDER | .SWP_NOSIZE | .SWP_NOACTIVATE);
 }
 
 GetViewportSize :: inline (window : *Window) -> width : s32, height : s32 #no_context
@@ -377,7 +474,7 @@ SetViewportSize :: inline (window : *Window, width : s32, height : s32) #no_cont
     rect := Win32.RECT.{0, 0, width, height};
     Win32.AdjustWindowRectEx (*rect, style, 0, ex_style);
 
-    Win32.SetWindowPos (window.hwnd, null, 0, 0, rect.right - rect.left, rect.bottom - rect.top, Win32.SWP_NOZORDER | Win32.SWP_NOMOVE | Win32.SWP_NOACTIVATE);
+    Win32.SetWindowPos (window.hwnd, null, 0, 0, rect.right - rect.left, rect.bottom - rect.top, .SWP_NOZORDER | .SWP_NOMOVE | .SWP_NOACTIVATE);
 }
 
 GetFocusedWindow :: () -> *Window #must, non_fenetres_window_focused : bool #no_context
@@ -410,7 +507,7 @@ IsMaximized :: inline (window : *Window) -> bool #must #no_context
     placement : Win32.WINDOWPLACEMENT;
     placement.length = size_of (Win32.WINDOWPLACEMENT);
     if Win32.GetWindowPlacement (window.hwnd, *placement)
-        return placement.showCmd == Win32.SW_SHOWMAXIMIZED;
+        return placement.showCmd == .SW_SHOWMAXIMIZED;
 
     return false;
 }
@@ -420,37 +517,37 @@ IsMinimized :: inline (window : *Window) -> bool #must #no_context
     placement : Win32.WINDOWPLACEMENT;
     placement.length = size_of (Win32.WINDOWPLACEMENT);
     if Win32.GetWindowPlacement (window.hwnd, *placement)
-        return placement.showCmd == Win32.SW_SHOWMINIMIZED;
+        return placement.showCmd == .SW_SHOWMINIMIZED;
 
     return false;
 }
 
 Maximize :: inline (window : *Window) #no_context
 {
-    Win32.ShowWindow (window.hwnd, Win32.SW_MAXIMIZE);
+    Win32.ShowWindow (window.hwnd, .SW_MAXIMIZE);
 }
 
 Restore :: inline (window : *Window) #no_context
 {
-    Win32.ShowWindow (window.hwnd, Win32.SW_RESTORE);
+    Win32.ShowWindow (window.hwnd, .SW_RESTORE);
 }
 
 Minimize :: inline (window : *Window) #no_context
 {
-    Win32.ShowWindow (window.hwnd, Win32.SW_MINIMIZE);
+    Win32.ShowWindow (window.hwnd, .SW_MINIMIZE);
 }
 
 SetWindowVisibility :: inline (window : *Window, visible : bool) #no_context
 {
     if visible
-        Win32.ShowWindow (window.hwnd, Win32.SW_SHOWNA);
+        Win32.ShowWindow (window.hwnd, .SW_SHOWNA);
     else
-        Win32.ShowWindow (window.hwnd, Win32.SW_HIDE);
+        Win32.ShowWindow (window.hwnd, .SW_HIDE);
 }
 
 ShowAndFocusWindow :: inline (window : *Window) #no_context
 {
-    Win32.ShowWindow (window.hwnd, Win32.SW_SHOW);
+    Win32.ShowWindow (window.hwnd, .SW_SHOW);
 }
 
 GetMousePosition :: inline () -> x : s32, y : s32 #no_context
@@ -526,10 +623,10 @@ GetMouseCapture :: inline () -> *Window #must, non_fenetres_window : bool #no_co
 
 PollMessages :: () -> []Message
 {
-    ArrayClear (*g_message_queue);
+    g_message_queue.count = 0;
 
     windows_msg : Win32.MSG;
-    while Win32.PeekMessageW (*windows_msg, null, 0, 0, Win32.PM_REMOVE)
+    while Win32.PeekMessageW (*windows_msg, null, 0, 0, .PM_REMOVE)
     {
         Win32.TranslateMessage (*windows_msg);
         Win32.DispatchMessageW (*windows_msg);
@@ -560,59 +657,50 @@ SetCursor :: inline (cursor : SystemCursor) #no_context
     Win32.SetCursor (g_cursors.all[cursor]);
 }
 
-VKToMouseButton :: inline (vk : u32) -> MouseButton #must #no_context
+VKToMouseButton :: inline (vk : Win32.VIRTUAL_KEY) -> MouseButton #must #no_context
 {
     if vk ==
     {
-    case Win32.VK_LBUTTON;
+    case .VK_LBUTTON;
         return .Left;
-    case Win32.VK_RBUTTON;
+    case .VK_RBUTTON;
         return .Right;
-    case Win32.VK_MBUTTON;
+    case .VK_MBUTTON;
         return .Middle;
     }
 
     return .Invalid;
 }
 
-MouseButtonToVK :: inline (button : MouseButton) -> s32 #must #no_context
+MouseButtonToVK :: inline (button : MouseButton) -> Win32.VIRTUAL_KEY #must #no_context
 {
     if button ==
     {
     case .Left;
-        return Win32.VK_LBUTTON;
+        return .VK_LBUTTON;
     case .Right;
-        return Win32.VK_RBUTTON;
+        return .VK_RBUTTON;
     case .Middle;
-        return Win32.VK_MBUTTON;
+        return .VK_MBUTTON;
     }
 
-    return 0;
+    return xx 0;
 }
 
-VKToKeyCode :: (vk : s32) -> KeyCode #must #no_context
+VKToKeyCode :: (vk : Win32.VIRTUAL_KEY) -> KeyCode #must #no_context
 {
     #insert -> string
     {
-        #import "String_Builder";
+        builder : String_Builder;
 
-        builder : StringBuilder;
-
-        StringBuilderAppendLine (*builder, "if vk ==\n{{");
-        for i : 0..256
+        append (*builder, "if vk ==\n{\n");
+        for VK_To_Key_Code_Map
         {
-            for VK_To_Key_Code_Map
-            {
-                if it.vk == i
-                {
-                    StringBuilderAppendLine (*builder, "case %; return .%;", i, it.key_code);
-                    continue i;
-                }
-            }
+            print_to_builder (*builder, "case .%; return .%;\n", it.vk, it.key_code);
         }
-        StringBuilderAppendLine (*builder, "}");
+        append (*builder, "}\n");
 
-        return StringBuilderBuild (*builder);
+        return builder_to_string (*builder);
     };
 
     return .Invalid;
@@ -622,25 +710,16 @@ KeyCodeToVK :: (key_code : KeyCode) -> s32 #must #no_context
 {
     #insert -> string
     {
-        #import "String_Builder";
+        builder : String_Builder;
 
-        builder : StringBuilder;
-
-        StringBuilderAppendLine (*builder, "if key_code ==\n{{");
-        for i : 0..256
+        append (*builder, "if key_code ==\n{\n");
+        for VK_To_Key_Code_Map
         {
-            for VK_To_Key_Code_Map
-            {
-                if it.key_code == xx i
-                {
-                    StringBuilderAppendLine (*builder, "case .%; return %;", it.key_code, it.vk);
-                    continue i;
-                }
-            }
+            print_to_builder (*builder, "case .%; return .%;\n", it.key_code, it.vk);
         }
-        StringBuilderAppendLine (*builder, "}");
+        append (*builder, "}\n");
 
-        return StringBuilderBuild (*builder);
+        return builder_to_string (*builder);
     };
 
     return 0;
@@ -649,11 +728,11 @@ KeyCodeToVK :: (key_code : KeyCode) -> s32 #must #no_context
 GetKeyModState :: inline () -> KeyMods #must #no_context
 {
     result : KeyMods;
-    if (Win32.GetAsyncKeyState (Win32.VK_CONTROL) & 0x8000) != 0
+    if (Win32.GetAsyncKeyState (xx Win32.VIRTUAL_KEY.VK_CONTROL) & 0x8000) != 0
         result |= .Ctrl;
-    if (Win32.GetAsyncKeyState (Win32.VK_SHIFT) & 0x8000) != 0
+    if (Win32.GetAsyncKeyState (xx Win32.VIRTUAL_KEY.VK_SHIFT) & 0x8000) != 0
         result |= .Shift;
-    if (Win32.GetAsyncKeyState (Win32.VK_MENU) & 0x8000) != 0
+    if (Win32.GetAsyncKeyState (xx Win32.VIRTUAL_KEY.VK_MENU) & 0x8000) != 0
         result |= .Alt;
 
     return result;
@@ -673,7 +752,7 @@ GetClipboardTextData :: (allocator := context.allocator) -> string #must
     buffer := Win32.GlobalLock (data);
     defer Win32.GlobalUnlock (data);
 
-    return Windows_Utils.WideToUtf8 (buffer, allocator);
+    return WideToUtf8 (buffer, allocator);
 }
 
 SetClipboardTextData :: (text : string)
@@ -683,7 +762,7 @@ SetClipboardTextData :: (text : string)
 
     defer Win32.CloseClipboard ();
 
-    wide_str, wide_len := Windows_Utils.Utf8ToWide (text, Temp);
+    wide_str, wide_len := Utf8ToWide (text, temp);
 
     clipbuffer := Win32.GlobalAlloc (0, xx (wide_len * 2 + 2));
 
@@ -719,22 +798,15 @@ Keystroke :: struct
 
 DecomposeKeystrokeParam :: inline (lparam : Win32.LPARAM) -> Keystroke #must
 {
-    KF_EXTENDED :: 256;
-    KF_DLGMODE  :: 2048;
-    KF_MENUMODE :: 4096;
-    KF_ALTDOWN  :: 8192;
-    KF_REPEAT   :: 16384;
-    KF_UP       :: 32768;
-
     using result : Keystroke;
     repeat_count = Win32.LOWORD (lparam);
     scan_code = cast, no_check (u8) Win32.HIWORD (lparam);
-    extended           = (Win32.HIWORD (lparam) & KF_EXTENDED) == KF_EXTENDED;
-    previous_key_state = (Win32.HIWORD (lparam) & KF_REPEAT) == KF_REPEAT;
-    transition_state   = (Win32.HIWORD (lparam) & KF_UP) == KF_UP;
-    alt_down           = (Win32.HIWORD (lparam) & KF_ALTDOWN) == KF_ALTDOWN;
-    dialog_mode        = (Win32.HIWORD (lparam) & KF_DLGMODE) == KF_DLGMODE;
-    menu_mode          = (Win32.HIWORD (lparam) & KF_MENUMODE) == KF_MENUMODE;
+    extended           = (Win32.HIWORD (lparam) & Win32.KF_EXTENDED) == Win32.KF_EXTENDED;
+    previous_key_state = (Win32.HIWORD (lparam) & Win32.KF_REPEAT) == Win32.KF_REPEAT;
+    transition_state   = (Win32.HIWORD (lparam) & Win32.KF_UP) == Win32.KF_UP;
+    alt_down           = (Win32.HIWORD (lparam) & Win32.KF_ALTDOWN) == Win32.KF_ALTDOWN;
+    dialog_mode        = (Win32.HIWORD (lparam) & Win32.KF_DLGMODE) == Win32.KF_DLGMODE;
+    menu_mode          = (Win32.HIWORD (lparam) & Win32.KF_MENUMODE) == Win32.KF_MENUMODE;
 
     return result;
 }
@@ -742,7 +814,7 @@ DecomposeKeystrokeParam :: inline (lparam : Win32.LPARAM) -> Keystroke #must
 WindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM, lparam : Win32.LPARAM) -> Win32.LRESULT
 #c_call
 {
-    window := cast (*Window) Win32.GetWindowLongPtrW (hwnd, Win32.GWLP_USERDATA);
+    window := cast (*Window) Win32.GetWindowLongPtrW (hwnd, .GWLP_USERDATA);
     if !window
         return Win32.DefWindowProcW (hwnd, msg, wparam, lparam);
 
@@ -764,14 +836,14 @@ WindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM, lparam : Win
                 }
             }
 
-            Free (window);
-            Win32.SetWindowLongPtrW (hwnd, Win32.GWLP_USERDATA, cast (*s32) null);
+            free (window);
+            Win32.SetWindowLongPtrW (hwnd, .GWLP_USERDATA, cast (s64) null);
 
         case Win32.WM_MOVE;
             window_message.kind = .Window_Moved;
             window_message.window_x = Win32.LOWORD (lparam);
             window_message.window_y = Win32.HIWORD (lparam);
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_SIZE;
             if wparam ==
@@ -785,26 +857,26 @@ WindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM, lparam : Win
             }
             window_message.viewport_w = Win32.LOWORD (lparam);
             window_message.viewport_h = Win32.HIWORD (lparam);
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_CLOSE;
             window_message.kind = .Window_Closed;
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_SHOWWINDOW;
             if wparam
                 window_message.kind = .Window_Shown;
             else
                 window_message.kind = .Window_Hidden;
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_SETFOCUS;
             window_message.kind = .Window_Received_Focus;
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_KILLFOCUS;
             window_message.kind = .Window_Lost_Focus;
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_CHAR;
             codepoint := cast (u32) wparam;
@@ -829,7 +901,7 @@ WindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM, lparam : Win
                 window_message.kind = .Text_Input;
                 window_message.mods = GetKeyModState ();
                 window_message.codepoint = codepoint;
-                ArrayPush (*g_message_queue, window_message);
+                array_add (*g_message_queue, window_message);
             }
 
         case Win32.WM_SYSKEYDOWN; #through;
@@ -847,7 +919,7 @@ WindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM, lparam : Win
 
             window_message.mods = GetKeyModState ();
             window_message.key_code = VKToKeyCode (xx wparam);
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
             if msg == Win32.WM_SYSKEYDOWN || msg == Win32.WM_SYSKEYUP
                 return Win32.DefWindowProcW (hwnd, msg, wparam, lparam);
@@ -857,63 +929,63 @@ WindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM, lparam : Win
             window_message.mouse_button = .Left;
             window_message.mods = GetKeyModState ();
             window_message.mouse_x, window_message.mouse_y = Win32.LOWORD (lparam), Win32.HIWORD (lparam);
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_RBUTTONDOWN;
             window_message.kind = .Mouse_Button_Pressed;
             window_message.mouse_button = .Right;
             window_message.mods = GetKeyModState ();
             window_message.mouse_x, window_message.mouse_y = Win32.LOWORD (lparam), Win32.HIWORD (lparam);
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_MBUTTONDOWN;
             window_message.kind = .Mouse_Button_Pressed;
             window_message.mouse_button = .Middle;
             window_message.mods = GetKeyModState ();
             window_message.mouse_x, window_message.mouse_y = Win32.LOWORD (lparam), Win32.HIWORD (lparam);
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_LBUTTONUP;
             window_message.kind = .Mouse_Button_Released;
             window_message.mouse_button = .Left;
             window_message.mods = GetKeyModState ();
             window_message.mouse_x, window_message.mouse_y = Win32.LOWORD (lparam), Win32.HIWORD (lparam);
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_RBUTTONUP;
             window_message.kind = .Mouse_Button_Released;
             window_message.mouse_button = .Right;
             window_message.mods = GetKeyModState ();
             window_message.mouse_x, window_message.mouse_y = Win32.LOWORD (lparam), Win32.HIWORD (lparam);
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_MBUTTONUP;
             window_message.kind = .Mouse_Button_Released;
             window_message.mouse_button = .Middle;
             window_message.mods = GetKeyModState ();
             window_message.mouse_x, window_message.mouse_y = Win32.LOWORD (lparam), Win32.HIWORD (lparam);
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_LBUTTONDBLCLK;
             window_message.kind = .Mouse_Button_Repeated;
             window_message.mouse_button = .Left;
             window_message.mods = GetKeyModState ();
             window_message.mouse_x, window_message.mouse_y = Win32.LOWORD (lparam), Win32.HIWORD (lparam);
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_RBUTTONDBLCLK;
             window_message.kind = .Mouse_Button_Repeated;
             window_message.mouse_button = .Right;
             window_message.mods = GetKeyModState ();
             window_message.mouse_x, window_message.mouse_y = Win32.LOWORD (lparam), Win32.HIWORD (lparam);
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_MBUTTONDBLCLK;
             window_message.kind = .Mouse_Button_Repeated;
             window_message.mouse_button = .Middle;
             window_message.mods = GetKeyModState ();
             window_message.mouse_x, window_message.mouse_y = Win32.LOWORD (lparam), Win32.HIWORD (lparam);
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_MOUSEHWHEEL; #through;
         case Win32.WM_MOUSEWHEEL;
@@ -924,7 +996,7 @@ WindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM, lparam : Win
             else
                 window_message.mouse_wheel_y = Win32.HIWORD (wparam) / 120.0;
             window_message.mouse_x, window_message.mouse_y = Win32.LOWORD (lparam), Win32.HIWORD (lparam);
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_MOUSEMOVE;
             if window.mouse_is_outside
@@ -942,18 +1014,18 @@ WindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM, lparam : Win
                 enter_message.kind = .Mouse_Entered_Window;
                 enter_message.mods = GetKeyModState ();
                 enter_message.mouse_x, enter_message.mouse_y = Win32.LOWORD (lparam), Win32.HIWORD (lparam);
-                ArrayPush (*g_message_queue, enter_message);
+                array_add (*g_message_queue, enter_message);
             }
 
             window_message.kind = .Mouse_Moved;
             window_message.mods = GetKeyModState ();
             window_message.mouse_x, window_message.mouse_y = Win32.LOWORD (lparam), Win32.HIWORD (lparam);
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_MOUSELEAVE;
             window.mouse_is_outside = true;
             window_message.kind = .Mouse_Left_Window;
-            ArrayPush (*g_message_queue, window_message);
+            array_add (*g_message_queue, window_message);
 
         case Win32.WM_SETCURSOR;
             Win32.SetCursor (g_cursors.arrow);
@@ -971,7 +1043,7 @@ WindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM, lparam : Win
 CustomCaptionWindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM, lparam : Win32.LPARAM) -> Win32.LRESULT
 #c_call
 {
-    window := cast (*Window) Win32.GetWindowLongPtrW (hwnd, Win32.GWLP_USERDATA);
+    window := cast (*Window) Win32.GetWindowLongPtrW (hwnd, .GWLP_USERDATA);
     if !window
         return Win32.DefWindowProcW (hwnd, msg, wparam, lparam);
 
@@ -988,7 +1060,7 @@ CustomCaptionWindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM,
             Win32.SetWindowPos (hwnd, null,
                 size_rect.left, size_rect.top,
                 size_rect.right - size_rect.left, size_rect.bottom - size_rect.top,
-                Win32.SWP_FRAMECHANGED | Win32.SWP_NOMOVE | Win32.SWP_NOSIZE
+                .SWP_FRAMECHANGED | .SWP_NOMOVE | .SWP_NOSIZE
             );
 
             return Win32.DefWindowProcW (hwnd, msg, wparam, lparam);
@@ -997,9 +1069,9 @@ CustomCaptionWindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM,
             if wparam == 0
                 return Win32.DefWindowProcW (hwnd, msg, wparam, lparam);
 
-            frame_x := Win32.GetSystemMetrics (Win32.SM_CXFRAME);
-            frame_y := Win32.GetSystemMetrics (Win32.SM_CYFRAME);
-            padding := Win32.GetSystemMetrics (Win32.SM_CXPADDEDBORDER);
+            frame_x := Win32.GetSystemMetrics (.SM_CXFRAME);
+            frame_y := Win32.GetSystemMetrics (.SM_CYFRAME);
+            padding := Win32.GetSystemMetrics (.SM_CXPADDEDBORDER);
             params := cast (*Win32.NCCALCSIZE_PARAMS) lparam;
 
             client_rect := *params.rgrc[0];
@@ -1034,7 +1106,7 @@ CustomCaptionWindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM,
             Win32.ScreenToClient (hwnd, *cursor);
 
             on_caption := window.caption_hit_test && window.caption_hit_test (window, cursor.x, cursor.y);
-            on_resize_border := cursor.y > 0 && cursor.y < Win32.GetSystemMetrics (Win32.SM_CYFRAME) + Win32.GetSystemMetrics (Win32.SM_CXPADDEDBORDER);
+            on_resize_border := cursor.y > 0 && cursor.y < Win32.GetSystemMetrics (.SM_CYFRAME) + Win32.GetSystemMetrics (.SM_CXPADDEDBORDER);
 
             // Don't resize when we are not on the caption, because we could be on
             // some UI elements. If we don't have a caption_hit_test, then ignore
@@ -1053,122 +1125,122 @@ CustomCaptionWindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM,
 
 VKKeyCodePair :: struct
 {
-    vk : s32;
+    vk : Win32.VIRTUAL_KEY;
     key_code : KeyCode;
 }
 
 VK_To_Key_Code_Map :: VKKeyCodePair.[
-    .{ Win32.VK_BACK, .Backspace },
-    .{ Win32.VK_TAB, .Tab },
-    .{ Win32.VK_CLEAR, .Clear },
-    .{ Win32.VK_RETURN, .Return },
-    .{ Win32.VK_SHIFT, .Shift },
-    .{ Win32.VK_CONTROL, .Ctrl },
-    .{ Win32.VK_MENU, .Alt },
-    .{ Win32.VK_PAUSE, .Pause },
-    .{ Win32.VK_CAPITAL, .Caps_Lock },
-    .{ Win32.VK_ESCAPE, .Escape },
-    .{ Win32.VK_SPACE, .Space },
-    .{ Win32.VK_PRIOR, .Page_Up },
-    .{ Win32.VK_NEXT, .Page_Down },
-    .{ Win32.VK_END, .End },
-    .{ Win32.VK_HOME, .Home },
-    .{ Win32.VK_LEFT, .Left },
-    .{ Win32.VK_UP, .Up },
-    .{ Win32.VK_RIGHT, .Right },
-    .{ Win32.VK_DOWN, .Down },
-    .{ Win32.VK_SELECT, .Select },
-    .{ Win32.VK_PRINT, .Print },
-    .{ Win32.VK_EXECUTE, .Execute },
-    .{ Win32.VK_SNAPSHOT, .Print_Screen },
-    .{ Win32.VK_INSERT, .Insert },
-    .{ Win32.VK_DELETE, .Delete },
-    .{ Win32.VK_HELP, .Help },
-    .{ #char "0", .Zero },
-    .{ #char "1", .One },
-    .{ #char "2", .Two },
-    .{ #char "3", .Three },
-    .{ #char "4", .Four },
-    .{ #char "5", .Five },
-    .{ #char "6", .Six },
-    .{ #char "7", .Seven },
-    .{ #char "8", .Eight },
-    .{ #char "9", .Nine },
-    .{ #char "A", .A },
-    .{ #char "B", .B },
-    .{ #char "C", .C },
-    .{ #char "D", .D },
-    .{ #char "E", .E },
-    .{ #char "F", .F },
-    .{ #char "G", .G },
-    .{ #char "H", .H },
-    .{ #char "I", .I },
-    .{ #char "J", .J },
-    .{ #char "K", .K },
-    .{ #char "L", .L },
-    .{ #char "M", .M },
-    .{ #char "N", .N },
-    .{ #char "O", .O },
-    .{ #char "P", .P },
-    .{ #char "Q", .Q },
-    .{ #char "R", .R },
-    .{ #char "S", .S },
-    .{ #char "T", .T },
-    .{ #char "U", .U },
-    .{ #char "V", .V },
-    .{ #char "W", .W },
-    .{ #char "X", .X },
-    .{ #char "Y", .Y },
-    .{ #char "Z", .Z },
-    .{ Win32.VK_LWIN, .Left_Super },
-    .{ Win32.VK_RWIN, .Right_Super },
-    .{ Win32.VK_NUMPAD0, .Numpad0 },
-    .{ Win32.VK_NUMPAD1, .Numpad1 },
-    .{ Win32.VK_NUMPAD2, .Numpad2 },
-    .{ Win32.VK_NUMPAD3, .Numpad3 },
-    .{ Win32.VK_NUMPAD4, .Numpad4 },
-    .{ Win32.VK_NUMPAD5, .Numpad5 },
-    .{ Win32.VK_NUMPAD6, .Numpad6 },
-    .{ Win32.VK_NUMPAD7, .Numpad7 },
-    .{ Win32.VK_NUMPAD8, .Numpad8 },
-    .{ Win32.VK_NUMPAD9, .Numpad9 },
-    .{ Win32.VK_MULTIPLY, .Multiply },
-    .{ Win32.VK_ADD, .Add },
-    .{ Win32.VK_SEPARATOR, .Separator },
-    .{ Win32.VK_SUBTRACT, .Subtract },
-    .{ Win32.VK_DECIMAL, .Decimal },
-    .{ Win32.VK_DIVIDE, .Divide },
-    .{ Win32.VK_F1, .F1 },
-    .{ Win32.VK_F2, .F2 },
-    .{ Win32.VK_F3, .F3 },
-    .{ Win32.VK_F4, .F4 },
-    .{ Win32.VK_F5, .F5 },
-    .{ Win32.VK_F6, .F6 },
-    .{ Win32.VK_F7, .F7 },
-    .{ Win32.VK_F8, .F8 },
-    .{ Win32.VK_F9, .F9 },
-    .{ Win32.VK_F10, .F10 },
-    .{ Win32.VK_F11, .F11 },
-    .{ Win32.VK_F12, .F12 },
-    .{ Win32.VK_NUMLOCK, .Num_Lock },
-    .{ Win32.VK_SCROLL, .Scroll_Lock },
-    .{ Win32.VK_LSHIFT, .Left_Shift },
-    .{ Win32.VK_RSHIFT, .Right_Shift },
-    .{ Win32.VK_LCONTROL, .Left_Ctrl },
-    .{ Win32.VK_RCONTROL, .Right_Ctrl },
-    .{ Win32.VK_LMENU, .Left_Alt },
-    .{ Win32.VK_RMENU, .Right_Alt },
-    .{ Win32.VK_OEM_1, .OEM1 },
-    .{ Win32.VK_OEM_PLUS, .OEM_Plus },
-    .{ Win32.VK_OEM_COMMA, .OEM_Comma },
-    .{ Win32.VK_OEM_MINUS, .OEM_Minus },
-    .{ Win32.VK_OEM_PERIOD, .OEM_Period },
-    .{ Win32.VK_OEM_2, .OEM2 },
-    .{ Win32.VK_OEM_3, .OEM3 },
-    .{ Win32.VK_OEM_4, .OEM4 },
-    .{ Win32.VK_OEM_5, .OEM5 },
-    .{ Win32.VK_OEM_6, .OEM6 },
-    .{ Win32.VK_OEM_7, .OEM7 },
-    .{ Win32.VK_OEM_8, .OEM8 },
-    .{ Win32.VK_OEM_102, .OEM102 }
+    .{ .VK_BACK, .Backspace },
+    .{ .VK_TAB, .Tab },
+    .{ .VK_CLEAR, .Clear },
+    .{ .VK_RETURN, .Return },
+    .{ .VK_SHIFT, .Shift },
+    .{ .VK_CONTROL, .Ctrl },
+    .{ .VK_MENU, .Alt },
+    .{ .VK_PAUSE, .Pause },
+    .{ .VK_CAPITAL, .Caps_Lock },
+    .{ .VK_ESCAPE, .Escape },
+    .{ .VK_SPACE, .Space },
+    .{ .VK_PRIOR, .Page_Up },
+    .{ .VK_NEXT, .Page_Down },
+    .{ .VK_END, .End },
+    .{ .VK_HOME, .Home },
+    .{ .VK_LEFT, .Left },
+    .{ .VK_UP, .Up },
+    .{ .VK_RIGHT, .Right },
+    .{ .VK_DOWN, .Down },
+    .{ .VK_SELECT, .Select },
+    .{ .VK_PRINT, .Print },
+    .{ .VK_EXECUTE, .Execute },
+    .{ .VK_SNAPSHOT, .Print_Screen },
+    .{ .VK_INSERT, .Insert },
+    .{ .VK_DELETE, .Delete },
+    .{ .VK_HELP, .Help },
+    .{ .VK_0, .Zero },
+    .{ .VK_1, .One },
+    .{ .VK_2, .Two },
+    .{ .VK_3, .Three },
+    .{ .VK_4, .Four },
+    .{ .VK_5, .Five },
+    .{ .VK_6, .Six },
+    .{ .VK_7, .Seven },
+    .{ .VK_8, .Eight },
+    .{ .VK_9, .Nine },
+    .{ .VK_A, .A },
+    .{ .VK_B, .B },
+    .{ .VK_C, .C },
+    .{ .VK_D, .D },
+    .{ .VK_E, .E },
+    .{ .VK_F, .F },
+    .{ .VK_G, .G },
+    .{ .VK_H, .H },
+    .{ .VK_I, .I },
+    .{ .VK_J, .J },
+    .{ .VK_K, .K },
+    .{ .VK_L, .L },
+    .{ .VK_M, .M },
+    .{ .VK_N, .N },
+    .{ .VK_O, .O },
+    .{ .VK_P, .P },
+    .{ .VK_Q, .Q },
+    .{ .VK_R, .R },
+    .{ .VK_S, .S },
+    .{ .VK_T, .T },
+    .{ .VK_U, .U },
+    .{ .VK_V, .V },
+    .{ .VK_W, .W },
+    .{ .VK_X, .X },
+    .{ .VK_Y, .Y },
+    .{ .VK_Z, .Z },
+    .{ .VK_LWIN, .Left_Super },
+    .{ .VK_RWIN, .Right_Super },
+    .{ .VK_NUMPAD0, .Numpad0 },
+    .{ .VK_NUMPAD1, .Numpad1 },
+    .{ .VK_NUMPAD2, .Numpad2 },
+    .{ .VK_NUMPAD3, .Numpad3 },
+    .{ .VK_NUMPAD4, .Numpad4 },
+    .{ .VK_NUMPAD5, .Numpad5 },
+    .{ .VK_NUMPAD6, .Numpad6 },
+    .{ .VK_NUMPAD7, .Numpad7 },
+    .{ .VK_NUMPAD8, .Numpad8 },
+    .{ .VK_NUMPAD9, .Numpad9 },
+    .{ .VK_MULTIPLY, .Multiply },
+    .{ .VK_ADD, .Add },
+    .{ .VK_SEPARATOR, .Separator },
+    .{ .VK_SUBTRACT, .Subtract },
+    .{ .VK_DECIMAL, .Decimal },
+    .{ .VK_DIVIDE, .Divide },
+    .{ .VK_F1, .F1 },
+    .{ .VK_F2, .F2 },
+    .{ .VK_F3, .F3 },
+    .{ .VK_F4, .F4 },
+    .{ .VK_F5, .F5 },
+    .{ .VK_F6, .F6 },
+    .{ .VK_F7, .F7 },
+    .{ .VK_F8, .F8 },
+    .{ .VK_F9, .F9 },
+    .{ .VK_F10, .F10 },
+    .{ .VK_F11, .F11 },
+    .{ .VK_F12, .F12 },
+    .{ .VK_NUMLOCK, .Num_Lock },
+    .{ .VK_SCROLL, .Scroll_Lock },
+    .{ .VK_LSHIFT, .Left_Shift },
+    .{ .VK_RSHIFT, .Right_Shift },
+    .{ .VK_LCONTROL, .Left_Ctrl },
+    .{ .VK_RCONTROL, .Right_Ctrl },
+    .{ .VK_LMENU, .Left_Alt },
+    .{ .VK_RMENU, .Right_Alt },
+    .{ .VK_OEM_1, .OEM1 },
+    .{ .VK_OEM_PLUS, .OEM_Plus },
+    .{ .VK_OEM_COMMA, .OEM_Comma },
+    .{ .VK_OEM_MINUS, .OEM_Minus },
+    .{ .VK_OEM_PERIOD, .OEM_Period },
+    .{ .VK_OEM_2, .OEM2 },
+    .{ .VK_OEM_3, .OEM3 },
+    .{ .VK_OEM_4, .OEM4 },
+    .{ .VK_OEM_5, .OEM5 },
+    .{ .VK_OEM_6, .OEM6 },
+    .{ .VK_OEM_7, .OEM7 },
+    .{ .VK_OEM_8, .OEM8 },
+    .{ .VK_OEM_102, .OEM102 }
 ];
