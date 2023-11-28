@@ -3,9 +3,11 @@
 #scope_file
 
 Win32 :: #import "Win32" (
+    Memory = true,
     GDI_Basics = true,
     Windows_And_Messaging = true,
     Input = true,
+    HiDpi = true,
 );
 
 g_all_windows : [..]*Window;
@@ -208,7 +210,7 @@ ShowErrorBox :: inline (parent : *Window, fmt_str : string, args : ..Any)
         ifx parent then parent.hwnd else null,
         Utf8ToWide (str, temp),
         null,
-        Win32.MB_ICONERROR | Win32.MB_OK
+        .MB_ICONERROR | .MB_OK
     );
 }
 
@@ -230,7 +232,7 @@ GetDisplays :: inline (allocator := context.allocator) -> []DisplayInfo #must
         monitor : Win32.HMONITOR,
         device_context : Win32.HDC,
         rect : *Win32.RECT,
-        user_data : *void
+        user_data : s64
     ) -> Win32.BOOL #c_call
     {
         (cast (*s64) user_data).* += 1;
@@ -247,7 +249,7 @@ GetDisplays :: inline (allocator := context.allocator) -> []DisplayInfo #must
         monitor : Win32.HMONITOR,
         device_context : Win32.HDC,
         rect : *Win32.RECT,
-        user_data : *void
+        user_data : s64
     ) -> Win32.BOOL #c_call
     {
         monitor_info : Win32.MONITORINFO;
@@ -268,7 +270,7 @@ GetDisplays :: inline (allocator := context.allocator) -> []DisplayInfo #must
         // "The values of *dpiX and *dpiY are identical. You only need to record
         // one of the values to determine the DPI and respond appropriately."
         dpi_x : u32;
-        if Win32.GetDpiForMonitor (monitor, Win32.MDT_EFFECTIVE_DPI, *dpi_x, null) == Win32.ERROR_SUCCESS
+        if Win32.GetDpiForMonitor (monitor, .MDT_EFFECTIVE_DPI, *dpi_x, null) == 0
             displays[index].dpi = xx dpi_x;
         else
             displays[index].dpi = 96;
@@ -279,11 +281,11 @@ GetDisplays :: inline (allocator := context.allocator) -> []DisplayInfo #must
     }
 
     count := 0;
-    Win32.EnumDisplayMonitors (null, null, CountDisplayMonitors, *count);
+    Win32.EnumDisplayMonitors (null, null, CountDisplayMonitors, cast (s64) *count);
 
     user_data : UserData;
     user_data.displays = NewArray (count, DisplayInfo, allocator = allocator);
-    Win32.EnumDisplayMonitors (null, null, AddDisplay, *user_data);
+    Win32.EnumDisplayMonitors (null, null, AddDisplay, cast (s64) *user_data);
 
     return user_data.displays;
 }
@@ -451,8 +453,8 @@ GetViewportPosition :: inline (window : *Window) -> width : s32, height : s32 #n
 
 SetViewportPosition :: inline (window : *Window, x : s32, y : s32) #no_context
 {
-    style := cast, no_check (u32) Win32.GetWindowLongW (window.hwnd, Win32.GWL_STYLE);
-    ex_style := cast, no_check (u32) Win32.GetWindowLongW (window.hwnd, Win32.GWL_EXSTYLE);
+    style := cast, no_check (Win32.WINDOW_STYLE) Win32.GetWindowLongW (window.hwnd, .GWL_STYLE);
+    ex_style := cast, no_check (Win32.WINDOW_EX_STYLE) Win32.GetWindowLongW (window.hwnd, .GWL_EXSTYLE);
     rect := Win32.RECT.{x, y, x, y};
     Win32.AdjustWindowRectEx (*rect, style, 0, ex_style);
 
@@ -469,8 +471,8 @@ GetViewportSize :: inline (window : *Window) -> width : s32, height : s32 #no_co
 
 SetViewportSize :: inline (window : *Window, width : s32, height : s32) #no_context
 {
-    style := cast, no_check (u32) Win32.GetWindowLongW (window.hwnd, Win32.GWL_STYLE);
-    ex_style := cast, no_check (u32) Win32.GetWindowLongW (window.hwnd, Win32.GWL_EXSTYLE);
+    style := cast, no_check (Win32.WINDOW_STYLE) Win32.GetWindowLongW (window.hwnd, .GWL_STYLE);
+    ex_style := cast, no_check (Win32.WINDOW_EX_STYLE) Win32.GetWindowLongW (window.hwnd, .GWL_EXSTYLE);
     rect := Win32.RECT.{0, 0, width, height};
     Win32.AdjustWindowRectEx (*rect, style, 0, ex_style);
 
@@ -706,7 +708,7 @@ VKToKeyCode :: (vk : Win32.VIRTUAL_KEY) -> KeyCode #must #no_context
     return .Invalid;
 }
 
-KeyCodeToVK :: (key_code : KeyCode) -> s32 #must #no_context
+KeyCodeToVK :: (key_code : KeyCode) -> Win32.VIRTUAL_KEY #must #no_context
 {
     #insert -> string
     {
@@ -745,12 +747,12 @@ GetClipboardTextData :: (allocator := context.allocator) -> string #must
 
     defer Win32.CloseClipboard ();
 
-    data := Win32.GetClipboardData (Win32.CF_UNICODETEXT);
+    data := Win32.GetClipboardData (xx Win32.CLIPBOARD_FORMATS.CF_UNICODETEXT);
     if !data
         return "";
 
-    buffer := Win32.GlobalLock (data);
-    defer Win32.GlobalUnlock (data);
+    buffer := Win32.GlobalLock (cast (s64) data);
+    defer Win32.GlobalUnlock (cast (s64) data);
 
     return WideToUtf8 (buffer, allocator);
 }
@@ -764,13 +766,13 @@ SetClipboardTextData :: (text : string)
 
     wide_str, wide_len := Utf8ToWide (text, temp);
 
-    clipbuffer := Win32.GlobalAlloc (0, xx (wide_len * 2 + 2));
+    clipbuffer := cast (*void) Win32.GlobalAlloc (0, xx (wide_len * 2 + 2));
 
-    buffer := Win32.GlobalLock (clipbuffer);
+    buffer := Win32.GlobalLock (cast (s64) clipbuffer);
     memcpy (buffer, wide_str, wide_len * 2 + 2);
-    Win32.GlobalUnlock (clipbuffer);
+    Win32.GlobalUnlock (cast (s64) clipbuffer);
 
-    Win32.SetClipboardData (Win32.CF_UNICODETEXT, clipbuffer);
+    Win32.SetClipboardData (xx Win32.CLIPBOARD_FORMATS.CF_UNICODETEXT, clipbuffer);
 }
 
 ClearClipboard :: inline ()

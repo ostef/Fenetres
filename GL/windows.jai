@@ -1,16 +1,6 @@
 #scope_module
 
-Win32 :: #import "Win32";
-
-Opengl32 :: #system_library "Opengl32";
-
-wglCreateContext :: (hdc : Win32.HDC) -> Win32.HGLRC #foreign Opengl32;
-wglDeleteContext :: (hglrc : Win32.HGLRC) -> Win32.BOOL #foreign Opengl32;
-wglMakeCurrent :: (hdc : Win32.HDC, hglrc : Win32.HGLRC) -> Win32.BOOL #foreign Opengl32;
-wglGetCurrentContext :: () -> Win32.HGLRC #foreign Opengl32;
-wglGetCurrentDC :: () -> Win32.HDC #foreign Opengl32;
-wglGetProcAddress :: (procname : *u8) -> *void #foreign Opengl32;
-wglShareLists :: (hglrc1 : Win32.HGLRC, hglrc2 : Win32.HGLRC) -> Win32.BOOL #foreign Opengl32;
+Win32 :: #import "Win32" (WGL = true, GDI_Basics = true);
 
 #scope_export
 
@@ -20,7 +10,7 @@ wglShareLists :: (hglrc1 : Win32.HGLRC, hglrc2 : Win32.HGLRC) -> Win32.BOOL #for
 
 GLContext :: Win32.HGLRC;
 
-GetProcAddress :: wglGetProcAddress;
+GetProcAddress :: Win32.wglGetProcAddress;
 
 CreateContext :: inline (window : *Window) -> GLContext #must #no_context
 {
@@ -37,18 +27,18 @@ CreateContext :: inline (window : *Window) -> GLContext #must #no_context
     pixel_format := Win32.ChoosePixelFormat (hdc, *pfd);
     Win32.SetPixelFormat (hdc, pixel_format, *pfd);
 
-    return wglCreateContext (hdc);
+    return Win32.wglCreateContext (hdc);
 }
 
 DestroyContext :: inline (ctx : GLContext) #no_context
 {
-    wglDeleteContext (ctx);
+    Win32.wglDeleteContext (ctx);
 }
 
 MakeCurrent :: inline (window : *Window, ctx : GLContext) #no_context
 {
     hdc := Win32.GetDC (window.hwnd);
-    wglMakeCurrent (hdc, ctx);
+    Win32.wglMakeCurrent (hdc, ctx);
 }
 
 SetSwapInterval :: inline (interval : int)
@@ -58,17 +48,17 @@ SetSwapInterval :: inline (interval : int)
 
 ShareContexts :: inline (first : GLContext, second : GLContext) -> bool #no_context
 {
-    return xx wglShareLists (first, second);
+    return xx Win32.wglShareLists (first, second);
 }
 
 GetCurrentContext :: inline () -> GLContext #must #no_context
 {
-    return wglGetCurrentContext ();
+    return Win32.wglGetCurrentContext ();
 }
 
 GetCurrentWindow :: inline () -> *Window #must, non_fenetres_window : bool #no_context
 {
-    hdc := wglGetCurrentDC ();
+    hdc := Win32.wglGetCurrentDC ();
     if !hdc
         return null, false;
 
