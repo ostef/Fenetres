@@ -896,7 +896,7 @@ WindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM, lparam : Win
                 {
                     low_surrogate := cast (u16) codepoint;
                     codepoint  = (window.WM_CHAR_utf16_high_surrogate - Utf16_Hi_Surrogate) << 10;
-                    codepoint |= (low_surrogate - Utf16_Hi_Surrogate);
+                    codepoint += (low_surrogate - Utf16_Lo_Surrogate);
                     codepoint += 0x10000;
                 }
 
