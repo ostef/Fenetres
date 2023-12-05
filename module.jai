@@ -77,7 +77,7 @@ Message :: struct
     mouse_button : MouseButton;
 }
 
-MouseButton :: enum
+MouseButton :: enum u8
 {
     Invalid;
     Left;
@@ -85,14 +85,14 @@ MouseButton :: enum
     Middle;
 }
 
-KeyMods :: enum_flags
+KeyMods :: enum_flags u8
 {
     Ctrl;
     Shift;
     Alt;
 }
 
-KeyCode :: enum
+KeyCode :: enum u8
 {
     Invalid;
     Backspace;
