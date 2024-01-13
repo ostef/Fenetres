@@ -77,13 +77,13 @@ GetErrorString :: inline (error_code : u32) -> string #must
 }
 
 // The result is null terminated even though a Jai string is returned
-WideToUtf8 :: (data : *u16, allocator := context.allocator) -> string #must, success : bool
+WideToUtf8 :: (data : *u16) -> string #must, success : bool
 {
     result_length := Win32.WideCharToMultiByte (Win32.CP_UTF8, 0, data, -1, null, 0, null, null);
     if result_length <= 0
         return "", false;
 
-    utf8_data := cast (*u8) alloc (result_length, allocator);
+    utf8_data := cast (*u8) alloc (result_length);
 
     written := Win32.WideCharToMultiByte (Win32.CP_UTF8, 0, data, -1, utf8_data, result_length, null, null);
     if written > 0
@@ -99,11 +99,11 @@ WideToUtf8 :: (data : *u16, allocator := context.allocator) -> string #must, suc
 }
 
 // The result is null terminated
-Utf8ToWide :: (utf8_str : string, allocator := context.allocator) -> wide_str : *u16 #must, length : s32
+Utf8ToWide :: (utf8_str : string) -> wide_str : *u16 #must, length : s32
 {
     if !utf8_str
     {
-        wide_str := cast (*u16) alloc (size_of (u16), allocator);
+        wide_str := cast (*u16) alloc (size_of (u16));
         wide_str[0] = 0;
 
         return wide_str, 0;
@@ -113,7 +113,7 @@ Utf8ToWide :: (utf8_str : string, allocator := context.allocator) -> wide_str : 
     if result_length <= 0
         return null, 0;
 
-    wide_str := cast (*u16) alloc ((result_length + 1) * size_of (u16), allocator);
+    wide_str := cast (*u16) alloc ((result_length + 1) * size_of (u16));
     written := Win32.MultiByteToWideChar (Win32.CP_UTF8, 0, utf8_str.data, cast (s32) utf8_str.count, wide_str, result_length);
     if written > 0
     {
@@ -208,7 +208,7 @@ ShowErrorBox :: inline (parent : *Window, fmt_str : string, args : ..Any)
     str := tprint (fmt_str, ..args);
     Win32.MessageBoxW (
         ifx parent then parent.hwnd else null,
-        Utf8ToWide (str, temp),
+        Utf8ToWide (str,, temp),
         null,
         .MB_ICONERROR | .MB_OK
     );
@@ -226,7 +226,7 @@ DisplayInfo :: struct
     dpi : s32;
 }
 
-GetDisplays :: inline (allocator := context.allocator) -> []DisplayInfo #must
+GetDisplays :: inline () -> []DisplayInfo #must
 {
     CountDisplayMonitors :: (
         monitor : Win32.HMONITOR,
@@ -284,7 +284,7 @@ GetDisplays :: inline (allocator := context.allocator) -> []DisplayInfo #must
     Win32.EnumDisplayMonitors (null, null, CountDisplayMonitors, cast (s64) *count);
 
     user_data : UserData;
-    user_data.displays = NewArray (count, DisplayInfo, allocator = allocator);
+    user_data.displays = NewArray (count, DisplayInfo);
     Win32.EnumDisplayMonitors (null, null, AddDisplay, cast (s64) *user_data);
 
     return user_data.displays;
@@ -358,7 +358,7 @@ CreateWindow :: (
     hwnd := Win32.CreateWindowExW (
         ex_style,
         wndclass.lpszClassName,
-        Utf8ToWide (title, temp),
+        Utf8ToWide (title,, temp),
         style,
         x,
         y,
@@ -403,18 +403,18 @@ SwapBuffers :: inline (window : *Window) #no_context
     Win32.SwapBuffers (Win32.GetDC (window.hwnd));
 }
 
-GetWindowTitle :: inline (window : *Window, allocator := context.allocator) -> string #must
+GetWindowTitle :: inline (window : *Window) -> string #must
 {
     len := Win32.GetWindowTextLengthW (window.hwnd) + 2;
-    wide_buffer := cast (*u16) alloc (size_of (u16) * len, temp);
+    wide_buffer := cast (*u16) alloc (size_of (u16) * len,, temp);
     Win32.GetWindowTextW (window.hwnd, wide_buffer, len);
 
-    return WideToUtf8 (wide_buffer, allocator);
+    return WideToUtf8 (wide_buffer);
 }
 
 SetWindowTitle :: inline (window : *Window, title : string)
 {
-    wide_title := Utf8ToWide (title, temp);
+    wide_title := Utf8ToWide (title,, temp);
     Win32.SetWindowTextW (window.hwnd, wide_title);
 }
 
@@ -740,7 +740,7 @@ GetKeyModState :: inline () -> KeyMods #must #no_context
     return result;
 }
 
-GetClipboardTextData :: (allocator := context.allocator) -> string #must
+GetClipboardTextData :: () -> string #must
 {
     if !Win32.OpenClipboard (null)
         return "";
@@ -754,7 +754,7 @@ GetClipboardTextData :: (allocator := context.allocator) -> string #must
     buffer := Win32.GlobalLock (cast (s64) data);
     defer Win32.GlobalUnlock (cast (s64) data);
 
-    return WideToUtf8 (buffer, allocator);
+    return WideToUtf8 (buffer);
 }
 
 SetClipboardTextData :: (text : string)
@@ -764,7 +764,7 @@ SetClipboardTextData :: (text : string)
 
     defer Win32.CloseClipboard ();
 
-    wide_str, wide_len := Utf8ToWide (text, temp);
+    wide_str, wide_len := Utf8ToWide (text,, temp);
 
     clipbuffer := cast (*void) Win32.GlobalAlloc (0, xx (wide_len * 2 + 2));
 
