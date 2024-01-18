@@ -83,6 +83,8 @@ MouseButton :: enum u8
     Left;
     Right;
     Middle;
+
+    Count;
 }
 
 KeyMods :: enum_flags u8

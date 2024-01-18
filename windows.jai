@@ -130,6 +130,8 @@ InitializeWindowClassesAndCursors :: ()
     if g_initialized
         return;
 
+    defer g_initialized = true;
+
     {
         using g_wndclass;
 
@@ -169,7 +171,10 @@ InitializeWindowClassesAndCursors :: ()
         g_cursors.not_allowed = Win32.LoadCursorW (null, Win32.IDC_NO);
     }
 
-    g_initialized = true;
+    mouse : Win32.RAWINPUTDEVICE;
+    mouse.usUsagePage = 0x1;
+    mouse.usUsage     = 0x2;
+    Win32.RegisterRawInputDevices (*mouse, 1, size_of (Win32.RAWINPUTDEVICE));
 }
 
 #scope_export
@@ -1031,6 +1036,31 @@ WindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM, lparam : Win
             window.mouse_is_outside = true;
             window_message.kind = .Mouse_Left_Window;
             array_add (*g_message_queue, window_message);
+
+        case Win32.WM_INPUT;
+            rawinput : Win32.RAWINPUT;
+
+            size := cast (u32) size_of (Win32.RAWINPUT);
+            Win32.GetRawInputData (cast (Win32.HRAWINPUT) lparam, .RID_INPUT, *rawinput, *size, size_of (Win32.RAWINPUTHEADER));
+
+            if rawinput.header.dwType == xx Win32.RID_DEVICE_INFO_TYPE.RIM_TYPEMOUSE
+            {
+                mouse := rawinput.data.mouse;
+                if mouse.usFlags & Win32.MOUSE_MOVE_RELATIVE == Win32.MOUSE_MOVE_RELATIVE
+                && (mouse.lLastX != 0 || mouse.lLastY != 0)
+                {
+                    window_message.kind = .Mouse_Raw_Moved;
+                    window_message.mods = GetKeyModState ();
+                    window_message.mouse_delta_x = mouse.lLastX;
+                    window_message.mouse_delta_y = mouse.lLastY;
+
+                    array_add (*g_message_queue, window_message);
+
+                    return 0;
+                }
+            }
+
+            return Win32.DefWindowProcW (hwnd, msg, wparam, lparam);
 
         case Win32.WM_SETCURSOR;
             Win32.SetCursor (g_cursors.arrow);
