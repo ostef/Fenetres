@@ -948,7 +948,22 @@ WindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM, lparam : Win
                 window_message.kind = .Key_Pressed;
 
             window_message.mods = GetKeyModState ();
+
+            if wparam == xx Win32.VIRTUAL_KEY.VK_CONTROL
+            {
+                wparam = xx ifx !extended then Win32.VIRTUAL_KEY.VK_LCONTROL else Win32.VIRTUAL_KEY.VK_RCONTROL;
+            }
+            else if wparam == xx Win32.VIRTUAL_KEY.VK_MENU
+            {
+                wparam = xx ifx !extended then Win32.VIRTUAL_KEY.VK_LMENU else Win32.VIRTUAL_KEY.VK_RMENU;
+            }
+            else if wparam == xx Win32.VIRTUAL_KEY.VK_SHIFT
+            {
+                wparam = Win32.MapVirtualKeyW (scan_code, Win32.MAPVK_VSC_TO_VK_EX);
+            }
+
             window_message.key_code = VKToKeyCode (xx wparam);
+
             array_add (*g_message_queue, window_message);
 
             if msg == Win32.WM_SYSKEYDOWN || msg == Win32.WM_SYSKEYUP
