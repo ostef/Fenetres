@@ -668,6 +668,22 @@ SetCursor :: inline (window : *Window, cursor : SystemCursor) #no_context
     window.cursor = cursor;
 }
 
+SetCursorConstraint :: inline (x : s32, y : s32, w : s32, h : s32) -> bool #no_context
+{
+    rect : Win32.RECT = ---;
+    rect.left = x;
+    rect.top = y;
+    rect.right = x + w;
+    rect.bottom = y + h;
+
+    return Win32.ClipCursor (*rect) != 0;
+}
+
+RemoveCursorConstraint :: inline () -> bool #no_context
+{
+    return Win32.ClipCursor (null) != 0;
+}
+
 VKToMouseButton :: inline (vk : Win32.VIRTUAL_KEY) -> MouseButton #must #no_context
 {
     if vk ==
