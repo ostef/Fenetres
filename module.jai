@@ -16,6 +16,7 @@ WindowFlags :: enum_flags
 
 SystemCursor :: enum
 {
+    None;
     Arrow;
     Arrow_Busy;
     Busy;

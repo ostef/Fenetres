@@ -18,6 +18,7 @@ g_cursors : struct
     all : [SystemCursor.Count]Win32.HCURSOR;
 
     #place all;
+    none : Win32.HCURSOR;
     arrow : Win32.HCURSOR;
     arrow_busy : Win32.HCURSOR;
     busy : Win32.HCURSOR;
@@ -157,6 +158,7 @@ InitializeWindowClassesAndCursors :: ()
         assert(ok, "RegisterClassExW for CustomCaptionWindowClass failed: %", GetLastErrorString ());
     }
     {
+        g_cursors.none = null;
         g_cursors.arrow = Win32.LoadCursorW (null, Win32.IDC_ARROW);
         g_cursors.arrow_busy = Win32.LoadCursorW (null, Win32.IDC_APPSTARTING);
         g_cursors.busy = Win32.LoadCursorW (null, Win32.IDC_WAIT);
@@ -188,6 +190,7 @@ Window :: struct
     WM_CHAR_utf16_high_surrogate : u16;
     caption_hit_test : CaptionHitTestProc;
     mouse_is_outside : bool;
+    cursor := SystemCursor.Arrow;
 }
 
 GetPlatformHandle :: inline (window : *Window) -> *void #must #no_context
@@ -649,6 +652,7 @@ g_show_cursor : bool;
 #scope_export
 
 SetCursorVisibility :: inline (visible : bool) #no_context
+#deprecated "Use SetCursor (window, .None) instead"
 {
     if g_show_cursor == visible
         return;
@@ -659,9 +663,9 @@ SetCursorVisibility :: inline (visible : bool) #no_context
     g_show_cursor = visible;
 }
 
-SetCursor :: inline (cursor : SystemCursor) #no_context
+SetCursor :: inline (window : *Window, cursor : SystemCursor) #no_context
 {
-    Win32.SetCursor (g_cursors.all[cursor]);
+    window.cursor = cursor;
 }
 
 VKToMouseButton :: inline (vk : Win32.VIRTUAL_KEY) -> MouseButton #must #no_context
@@ -1063,7 +1067,12 @@ WindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM, lparam : Win
             return Win32.DefWindowProcW (hwnd, msg, wparam, lparam);
 
         case Win32.WM_SETCURSOR;
-            Win32.SetCursor (g_cursors.arrow);
+            if Win32.LOWORD (lparam) == Win32.HTCLIENT
+            {
+                Win32.SetCursor (g_cursors.all[window.cursor]);
+
+                return 0;
+            }
 
             return Win32.DefWindowProcW (hwnd, msg, wparam, lparam);
 
