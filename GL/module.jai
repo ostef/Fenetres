@@ -12,10 +12,8 @@ LoadGL :: ()
     dummy_window := CreateWindow ("Dummy Window", -1, -1, -1, -1, .Hidden);
     defer DestroyWindow (dummy_window);
 
-    dummy_ctx := CreateContext (dummy_window, 0);
+    dummy_ctx := CreateContext (dummy_window, .Compatibility_Profile);
     defer DestroyContext (dummy_ctx);
-
-    MakeCurrent (dummy_window, dummy_ctx);
 
     gl_load (*gl, GetProcAddress);
 }
