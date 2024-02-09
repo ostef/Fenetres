@@ -1107,6 +1107,12 @@ WindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM, lparam : Win
 
             return Win32.DefWindowProcW (hwnd, msg, wparam, lparam);
 
+        case Win32.WM_DISPLAYCHANGE;
+            window_message.kind = .Display_Changed;
+            array_add (*g_message_queue, window_message);
+
+            return Win32.DefWindowProcW (hwnd, msg, wparam, lparam);
+
         case;
             return Win32.DefWindowProcW (hwnd, msg, wparam, lparam);
         }

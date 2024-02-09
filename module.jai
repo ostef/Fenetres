@@ -49,6 +49,8 @@ Message :: struct
         Window_Received_Focus;
         Window_Lost_Focus;
 
+        Display_Changed;
+
         Text_Input;
         Key_Pressed;
         Key_Repeated;
