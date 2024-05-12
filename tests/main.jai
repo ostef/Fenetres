@@ -53,7 +53,7 @@ main :: ()
             glClearColor (1, 0, 0, 1);
             glClear (GL_COLOR_BUFFER_BIT);
 
-            Fenetres.SwapBuffers (window);
+            Fenetres_GL.SwapBuffers (window);
         }
 
         {
@@ -65,7 +65,7 @@ main :: ()
             glClearColor (0, 1, 0, 1);
             glClear (GL_COLOR_BUFFER_BIT);
 
-            Fenetres.SwapBuffers (window1);
+            Fenetres_GL.SwapBuffers (window1);
         }
 
         {
@@ -77,7 +77,7 @@ main :: ()
             glClearColor (0, 0, 1, 1);
             glClear (GL_COLOR_BUFFER_BIT);
 
-            Fenetres.SwapBuffers (window2);
+            Fenetres_GL.SwapBuffers (window2);
         }
 
         {
@@ -89,7 +89,7 @@ main :: ()
             glClearColor (0.3, 0.3, 0.3, 1);
             glClear (GL_COLOR_BUFFER_BIT);
 
-            Fenetres.SwapBuffers (window3);
+            Fenetres_GL.SwapBuffers (window3);
         }
     }
 }

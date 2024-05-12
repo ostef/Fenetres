@@ -190,3 +190,8 @@ GetCurrentWindow :: inline () -> *Window #must, non_fenetres_window : bool #no_c
 
     return window, false;
 }
+
+SwapBuffers :: inline (window : *Window) #no_context
+{
+    Win32.SwapBuffers (Win32.GetDC (window.hwnd));
+}

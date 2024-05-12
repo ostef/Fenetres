@@ -406,11 +406,6 @@ CloseWindow :: inline (window : *Window) #no_context
     Win32.PostMessageW (window.hwnd, Win32.WM_CLOSE, 0, 0);
 }
 
-SwapBuffers :: inline (window : *Window) #no_context
-{
-    Win32.SwapBuffers (Win32.GetDC (window.hwnd));
-}
-
 GetWindowTitle :: inline (window : *Window) -> string #must
 {
     len := Win32.GetWindowTextLengthW (window.hwnd) + 2;
