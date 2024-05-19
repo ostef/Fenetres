@@ -159,11 +159,6 @@ MakeCurrent :: inline (window : *Window, ctx : GLContext) #no_context
     Win32.wglMakeCurrent (hdc, ctx);
 }
 
-SetSwapInterval :: inline (interval : int)
-{
-    // @Todo
-}
-
 ShareContexts :: inline (first : GLContext, second : GLContext) -> bool #no_context
 {
     return xx Win32.wglShareLists (first, second);
@@ -194,4 +189,14 @@ GetCurrentWindow :: inline () -> *Window #must, non_fenetres_window : bool #no_c
 SwapBuffers :: inline (window : *Window) #no_context
 {
     Win32.SwapBuffers (Win32.GetDC (window.hwnd));
+}
+
+SetSwapInterval :: inline (interval : s32) -> bool #no_context
+{
+    return xx wglSwapIntervalEXT (interval);
+}
+
+GetSwapInterval :: inline () -> s32 #must #no_context
+{
+    return wglGetSwapIntervalEXT ();
 }
