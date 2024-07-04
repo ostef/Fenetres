@@ -660,6 +660,9 @@ SetCursorVisibility :: inline (visible : bool) #no_context
 
 SetCursor :: inline (window : *Window, cursor : SystemCursor) #no_context
 {
+    if window.cursor != cursor
+        Win32.SetCursor (g_cursors.all[cursor]);
+
     window.cursor = cursor;
 }
 
