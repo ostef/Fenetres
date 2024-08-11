@@ -21,8 +21,8 @@ CreateWindowExtraParams :: struct
 
 g_selector : struct
 {
-    title: Selector;
-    screen: Selector;
+    title : Selector;
+    screen : Selector;
 };
 
 g_all_windows : [..]*Window;
@@ -166,14 +166,11 @@ CreateWindow :: (
     }
     else
     {
-        view := window.contentView (window);
-        title_bar_height := window.frame (window).size.height - view.frame (view).size.height;
-        screen_rect := target_screen.frame (target_screen);
-
         point := NSPoint.{
             xx x,
-            screen_rect.size.height - y - height - title_bar_height
+            xx (y + GetWindowTitleBarHeight (window) + height)
         };
+        point = InvertY (target_screen, point);
         window.setFrameOrigin (window, point);
     }
 
@@ -186,6 +183,34 @@ CreateWindow :: (
 
     return result;
 }
+
+#scope_file
+
+GetWindowScreen :: inline (window : *NSWindow) -> *NSScreen
+{
+    return cast (*NSScreen) objc_msgSend_typed (window, g_selector.screen);
+}
+
+GetWindowTitleBarHeight :: inline (window : *NSWindow) -> s32 #must
+{
+    rect := window.frame (window);
+    view := window.contentView (window);
+    view_rect := view.frame (view);
+
+    return xx (rect.size.height - view_rect.size.height);
+}
+
+InvertY :: inline (screen : *NSScreen, point : NSPoint) -> NSPoint #must
+{
+    screen_rect := screen.frame (screen);
+
+    return .{
+        point.x,
+        screen_rect.size.height - point.y,
+    };
+}
+
+#scope_export
 
 DestroyWindow :: inline (window : *Window)
 {
@@ -221,11 +246,10 @@ GetWindowPosition :: inline (window : *Window) -> x : s32, y : s32 #no_context
     ctx : Context;
     push_context ctx
     {
-        screen := cast (*NSScreen) objc_msgSend_typed (window.handle, g_selector.screen);
-        screen_rect := screen.frame (screen);
         rect := window.frame (window);
+        position := InvertY (GetWindowScreen (window), rect.origin);
 
-        return xx rect.origin.x, xx (screen_rect.size.height - rect.origin.y - rect.size.height);
+        return xx position.x, xx (position.y - rect.size.height);
     }
 }
 
@@ -253,14 +277,9 @@ GetViewportPosition :: inline (window : *Window) -> width : s32, height : s32 #n
     ctx : Context;
     push_context ctx
     {
-        screen := cast (*NSScreen) objc_msgSend_typed (window.handle, g_selector.screen);
-        screen_rect := screen.frame (screen);
-        rect := window.frame (window);
+        x, y := GetWindowPosition (window);
 
-        view := window.contentView (window);
-        view_rect := view.frame (view);
-
-        return xx rect.origin.x, xx (screen_rect.size.height - rect.origin.y - view_rect.size.height);
+        return x, y + GetWindowTitleBarHeight (window);
     }
 }
 
