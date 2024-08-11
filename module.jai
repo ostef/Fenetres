@@ -1,5 +1,12 @@
-#if OS == .WINDOWS
+#if OS ==
+{
+case .WINDOWS;
     #load "windows.jai";
+case .MACOS;
+    #load "macos.jai";
+case;
+    #assert false "Unsupported OS";
+}
 
 Window_Default_Pos  :: -1;
 Window_Default_Size :: -1;

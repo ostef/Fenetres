@@ -37,8 +37,6 @@ g_message_queue : [..]Message;
 
 g_initialized : bool;
 
-#scope_file
-
 g_error_wide_buffer : [128]u16;
 g_error_utf8_buffer : [512]u8;
 
@@ -398,6 +396,8 @@ CreateWindow :: (
 
 DestroyWindow :: inline (window : *Window) #no_context
 {
+    // This just posts a WM_DESTROY message, freeing the window happens
+    // when handling that message
     Win32.DestroyWindow (window.hwnd);
 }
 
@@ -563,6 +563,14 @@ GetMousePosition :: inline () -> x : s32, y : s32 #no_context
     return result.x, result.y;
 }
 
+SetMousePosition :: inline (x : s32, y : s32) #no_context
+{
+    p : Win32.POINT;
+    p.x = x;
+    p.y = y;
+    Win32.SetCursorPos (p.x, p.y);
+}
+
 ScreenToWindowPosition :: inline (window : *Window, x : s32, y : s32) -> x : s32, y : s32 #no_context
 {
     result := Win32.POINT.{x,y};
@@ -594,14 +602,6 @@ SetMousePosition :: inline (window : *Window, x : s32, y : s32) #no_context
     p.x = x;
     p.y = y;
     Win32.ClientToScreen (window, *p);
-    Win32.SetCursorPos (p.x, p.y);
-}
-
-SetMousePosition :: inline (x : s32, y : s32) #no_context
-{
-    p : Win32.POINT;
-    p.x = x;
-    p.y = y;
     Win32.SetCursorPos (p.x, p.y);
 }
 
