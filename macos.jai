@@ -19,6 +19,11 @@ CreateWindowExtraParams :: struct
 
 #scope_file
 
+g_selector : struct
+{
+    title: Selector;
+};
+
 g_all_windows : [..]*Window;
 g_initialized : bool;
 
@@ -30,6 +35,7 @@ InitObjectiveCStuff :: ()
     init_objective_c ();
     init_app_kit ();
     init_lightweight_rendering_view ();
+    init_objective_c_selector_struct (*g_selector);
 
     RegisterObjectiveCClass (AppDelegate, NSObject);
     RegisterObjectiveCClass (WindowDelegate, NSObject);
@@ -165,7 +171,7 @@ CreateWindow :: (
     if x == Window_Default_Pos || y == Window_Default_Pos
         window.center (window);
 
-    // window.setCollectionBehavior (window, NSWindowCollectionBehaviorFullScreenPrimary | NSWindowCollectionBehaviorManaged);
+    window.setCollectionBehavior (window, NSWindowCollectionBehaviorFullScreenPrimary | NSWindowCollectionBehaviorManaged);
     window.makeKeyAndOrderFront (window, null);
 
     result := New (Window);
@@ -183,10 +189,20 @@ DestroyWindow :: inline (window : *Window)
 
 CloseWindow :: inline (window : *Window) #no_context
 {
+    window.close (window);
 }
 
 GetWindowTitle :: inline (window : *Window) -> string #must
 {
+    ns_string := cast (*NSString) objc_msgSend_typed (window.handle, g_selector.title);
+    defer release (ns_string);
+
+    result := string.{
+        xx ns_string.length (ns_string),
+        ns_string.UTF8String (ns_string)
+    };
+
+    return copy_string (result);
 }
 
 SetWindowTitle :: inline (window : *Window, title : string)
