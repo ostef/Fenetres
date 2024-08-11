@@ -22,6 +22,7 @@ CreateWindowExtraParams :: struct
 g_selector : struct
 {
     title: Selector;
+    screen: Selector;
 };
 
 g_all_windows : [..]*Window;
@@ -141,35 +142,40 @@ CreateWindow :: (
     target_screen := NSScreen.mainScreen ();
 
     target_frame : NSRect;
-    target_frame.origin = .{xx x, xx y};
+    // We set the position afterwards
+    target_frame.origin = .{0, 0};
     target_frame.size = .{xx width, xx height};
 
     flags := NSWindowStyleMaskTitled | NSWindowStyleMaskResizable
         | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable;
 
     window := objc_alloc (NSWindow);
-    window = window.initWithContentRect (window, target_frame, flags, NSBackingStoreBuffered, NO, target_screen);
+    window.initWithContentRect (window, target_frame, flags, NSBackingStoreBuffered, NO, target_screen);
 
     autorelease (window);
 
     delegate := objc_init (objc_alloc (WindowDelegate));
     window.setDelegate (window, delegate);
 
-    content_view := objc_alloc (LightweightOpenGLView);
-    objc_init (content_view);
-
-    content_view.setWantsLayer (content_view, YES);
-    content_view.setWantsBestResolutionOpenGLSurface (content_view, YES);
-    autorelease (content_view);
-
-    window.setContentView (window, content_view);
-    window.makeFirstResponder (window, content_view);
-
     window.setReleasedWhenClosed (window, NO);
     window.setTitle (window, title);
 
     if x == Window_Default_Pos || y == Window_Default_Pos
+    {
         window.center (window);
+    }
+    else
+    {
+        view := window.contentView (window);
+        title_bar_height := window.frame (window).size.height - view.frame (view).size.height;
+        screen_rect := target_screen.frame (target_screen);
+
+        point := NSPoint.{
+            xx x,
+            screen_rect.size.height - y - height - title_bar_height
+        };
+        window.setFrameOrigin (window, point);
+    }
 
     window.setCollectionBehavior (window, NSWindowCollectionBehaviorFullScreenPrimary | NSWindowCollectionBehaviorManaged);
     window.makeKeyAndOrderFront (window, null);
@@ -212,6 +218,15 @@ SetWindowTitle :: inline (window : *Window, title : string)
 
 GetWindowPosition :: inline (window : *Window) -> x : s32, y : s32 #no_context
 {
+    ctx : Context;
+    push_context ctx
+    {
+        screen := cast (*NSScreen) objc_msgSend_typed (window.handle, g_selector.screen);
+        screen_rect := screen.frame (screen);
+        rect := window.frame (window);
+
+        return xx rect.origin.x, xx (screen_rect.size.height - rect.origin.y - rect.size.height);
+    }
 }
 
 SetWindowPosition :: inline (window : *Window, x : s32, y : s32) #no_context
@@ -220,6 +235,13 @@ SetWindowPosition :: inline (window : *Window, x : s32, y : s32) #no_context
 
 GetWindowSize :: inline (window : *Window) -> width : s32, height : s32 #no_context
 {
+    ctx : Context;
+    push_context ctx
+    {
+        rect := window.frame (window);
+
+        return xx rect.size.width, xx rect.size.height;
+    }
 }
 
 SetWindowSize :: inline (window : *Window, width : s32, height : s32) #no_context
@@ -228,6 +250,18 @@ SetWindowSize :: inline (window : *Window, width : s32, height : s32) #no_contex
 
 GetViewportPosition :: inline (window : *Window) -> width : s32, height : s32 #no_context
 {
+    ctx : Context;
+    push_context ctx
+    {
+        screen := cast (*NSScreen) objc_msgSend_typed (window.handle, g_selector.screen);
+        screen_rect := screen.frame (screen);
+        rect := window.frame (window);
+
+        view := window.contentView (window);
+        view_rect := view.frame (view);
+
+        return xx rect.origin.x, xx (screen_rect.size.height - rect.origin.y - view_rect.size.height);
+    }
 }
 
 SetViewportPosition :: inline (window : *Window, x : s32, y : s32) #no_context
@@ -236,6 +270,14 @@ SetViewportPosition :: inline (window : *Window, x : s32, y : s32) #no_context
 
 GetViewportSize :: inline (window : *Window) -> width : s32, height : s32 #no_context
 {
+    ctx : Context;
+    push_context ctx
+    {
+        view := window.contentView (window);
+        rect := view.frame (view);
+
+        return xx rect.size.width, xx rect.size.height;
+    }
 }
 
 SetViewportSize :: inline (window : *Window, width : s32, height : s32) #no_context
