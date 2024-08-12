@@ -196,7 +196,7 @@ GetPlatformHandle :: inline (window : *Window) -> *void #must #no_context
     return window.hwnd;
 }
 
-GetWindowFromPlatformHandle :: inline (hwnd : Win32.HWND) -> *Window #must #no_context
+GetWindowFromPlatformHandle :: inline (hwnd : *void) -> *Window #must #no_context
 {
     for g_all_windows
     {

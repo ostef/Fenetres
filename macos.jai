@@ -13,6 +13,17 @@ GetPlatformHandle :: inline (window : *Window) -> *void #must #no_context
     return window.handle;
 }
 
+GetWindowFromPlatformHandle :: inline (handle : *void) -> *Window #must #no_context
+{
+    for g_all_windows
+    {
+        if it.handle == handle
+            return it;
+    }
+
+    return null;
+}
+
 CreateWindowExtraParams :: struct
 {
 }
