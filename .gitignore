@@ -7,3 +7,5 @@ obj/
 *.blend1
 .vscode/
 __pycache__/
+examples/main
+examples/main.dSYM
