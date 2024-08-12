@@ -141,7 +141,7 @@ MakeCurrent :: inline (window : *Window, ctx : GLContext) #no_context
 
 ShareContexts :: inline (first : GLContext, second : GLContext) -> bool #no_context
 {
-    log_error ("Unsupported on MacOS. The API will change to accept a sharing context as creating param");
+    // log_error ("Unsupported on MacOS. The API will change to accept a sharing context as creating param");
 }
 
 GetCurrentContext :: inline () -> GLContext #must #no_context
@@ -191,7 +191,7 @@ SetSwapInterval :: inline (interval : s32) -> bool #no_context
     c : Context;
     push_context, defer_pop c;
 
-    ctx := NSOpenGLContext.current ();
+    ctx := NSOpenGLContext.currentContext ();
     if !ctx
         return false;
 
@@ -202,6 +202,9 @@ SetSwapInterval :: inline (interval : s32) -> bool #no_context
 
 GetSwapInterval :: inline () -> s32 #must #no_context
 {
+    c : Context;
+    push_context, defer_pop c;
+
     ctx := NSOpenGLContext.currentContext ();
     if !ctx
         return 0;
