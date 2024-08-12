@@ -301,7 +301,12 @@ CreateWindow :: (
         | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable;
 
     window := objc_alloc (NSWindow);
-    window.initWithContentRect (window, target_frame, flags, NSBackingStoreBuffered, NO, target_screen);
+    window = window.initWithContentRect (window, target_frame, flags, NSBackingStoreBuffered, NO, target_screen);
+    if !window
+    {
+        log_error ("Could not create window");
+        return null;
+    }
 
     autorelease (window);
 
