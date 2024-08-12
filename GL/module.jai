@@ -1,9 +1,14 @@
 #import "Fenetres";
 
-#if OS == .WINDOWS
+#if OS ==
+{
+case .WINDOWS;
     #load "windows.jai";
-else
+case .MACOS;
+    #load "macos.jai";
+case;
     #assert false "Unsupported OS";
+}
 
 LoadGL :: ()
 {
