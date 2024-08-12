@@ -102,6 +102,9 @@ KeyMods :: enum_flags u8
     Ctrl;
     Shift;
     Alt;
+    Cmd;
+
+    Option :: Alt;
 }
 
 KeyCode :: enum u8

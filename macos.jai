@@ -34,10 +34,18 @@ g_selector : struct
 {
     title : Selector;
     screen : Selector;
+    window : Selector;
+    clickCount : Selector;
+    scrollingDeltaX : Selector;
+    scrollingDeltaY : Selector;
+    locationInWindow : Selector;
+    mouseLocation : Selector;
 };
 
 g_all_windows : [..]*Window;
 g_initialized : bool;
+g_message_queue : [..]Message;
+g_non_polled_messages : [..]Message;
 
 InitObjectiveCStuff :: ()
 {
@@ -135,6 +143,44 @@ AppDelegate :: struct
 WindowDelegate :: struct
 {
     #as using _ : NSObject;
+
+    windowWillClose :: (using self : *WindowDelegate, sel : Selector, notification : *NSNotification) #c_call
+    {
+        ctx : Context;
+        push_context ctx
+        {
+            ns_window := cast (*NSWindow) notification.object (notification);
+            window := GetWindowFromPlatformHandle (ns_window);
+            if window
+            {
+                msg : Message;
+                msg.kind = .Window_Closed;
+                msg.window = window;
+                array_add (*g_non_polled_messages, msg);
+            }
+        }
+    }
+    @ObjectiveCMethod
+
+    windowDidResize :: (using self : *WindowDelegate, sel : Selector, notification : *NSNotification) #c_call
+    {
+        ctx : Context;
+        push_context ctx
+        {
+            ns_window := cast (*NSWindow) notification.object (notification);
+            window := GetWindowFromPlatformHandle (ns_window);
+            if window
+            {
+                msg : Message;
+                msg.kind = .Window_Resized;
+                msg.window = window;
+                msg.window_w, msg.window_h = GetWindowSize (window);
+                msg.viewport_w, msg.viewport_h = GetViewportSize (window);
+                array_add (*g_non_polled_messages, msg);
+            }
+        }
+    }
+    @ObjectiveCMethod
 }
 
 #scope_export
@@ -421,6 +467,22 @@ GetMouseCapture :: inline () -> *Window #must, non_fenetres_window : bool #no_co
 
 PollMessages :: () -> []Message
 {
+    GetEventMousePositionInWindow :: (window : *Window, event : *NSEvent) -> s32, s32
+    {
+        locationInWindow: (self: *void, op: Selector) -> NSPoint #c_call;
+        locationInWindow = xx objc_msgSend;
+
+        position := locationInWindow (event, g_selector.locationInWindow);
+        _, window_height := GetWindowSize (window);
+        position.y = window_height - position.y;
+
+        return xx position.x, xx position.y;
+    }
+
+    g_message_queue.count = 0;
+    array_add (*g_message_queue, ..g_non_polled_messages);
+    g_non_polled_messages.count = 0;
+
     past := NSDate.distantPast ();
     while true
     {
@@ -428,12 +490,161 @@ PollMessages :: () -> []Message
         if !event
             break;
 
-        NSApp.sendEvent (NSApp, event);
+        ns_window := cast (*NSWindow) objc_msgSend_typed (event, g_selector.window);
+        window := GetWindowFromPlatformHandle (ns_window);
+        if !window
+        {
+            NSApp.sendEvent (NSApp, event);
+
+            continue;
+        }
+
+        type := event.type (event);
+        if type ==
+        {
+        case NSEventTypeFlagsChanged;
+        case NSEventTypeKeyDown; #through;
+        case NSEventTypeKeyUp;
+            msg : Message;
+            msg.window = window;
+            msg.kind = ifx type == NSEventTypeKeyUp
+                then .Key_Released
+                else ifx event.isARepeat (event)
+                then .Key_Repeated
+                else .Key_Pressed;
+
+            mods := event.modifierFlags (event);
+            if mods & NSEventModifierFlagShift
+                msg.mods |= .Shift;
+            if mods & NSEventModifierFlagControl
+                msg.mods |= .Ctrl;
+            if mods & NSEventModifierFlagOption
+                msg.mods |= .Option;
+            if mods & NSEventModifierFlagCommand
+                msg.mods |= .Cmd;
+
+            // msg.key_code = CocoaKeyCodeToKeyCode (event.keyCode (event));
+            array_add (*g_message_queue, msg);
+
+        case NSEventTypeLeftMouseDown;
+            click_count := cast (NSInteger) objc_msgSend_typed (event, g_selector.clickCount);
+
+            msg : Message;
+            msg.window = window;
+            msg.kind = ifx click_count > 1
+                then .Mouse_Button_Repeated
+                else .Mouse_Button_Pressed;
+            msg.mouse_button = .Left;
+            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
+            array_add (*g_message_queue, msg);
+
+            NSApp.sendEvent (NSApp, event);
+
+        case NSEventTypeRightMouseDown;
+            click_count := cast (NSInteger) objc_msgSend_typed (event, g_selector.clickCount);
+
+            msg : Message;
+            msg.window = window;
+            msg.kind = ifx click_count > 1
+                then .Mouse_Button_Repeated
+                else .Mouse_Button_Pressed;
+            msg.mouse_button = .Right;
+            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
+            array_add (*g_message_queue, msg);
+
+            NSApp.sendEvent (NSApp, event);
+
+        case NSEventTypeOtherMouseDown;
+            click_count := cast (NSInteger) objc_msgSend_typed (event, g_selector.clickCount);
+
+            msg : Message;
+            msg.window = window;
+            msg.kind = ifx click_count > 1
+                then .Mouse_Button_Repeated
+                else .Mouse_Button_Pressed;
+            msg.mouse_button = .Middle;
+            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
+            array_add (*g_message_queue, msg);
+
+            NSApp.sendEvent (NSApp, event);
+
+        case NSEventTypeLeftMouseUp;
+            msg : Message;
+            msg.window = window;
+            msg.kind = .Mouse_Button_Released;
+            msg.mouse_button = .Left;
+            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
+            array_add (*g_message_queue, msg);
+
+            NSApp.sendEvent (NSApp, event);
+
+        case NSEventTypeRightMouseUp;
+            msg : Message;
+            msg.window = window;
+            msg.kind = .Mouse_Button_Released;
+            msg.mouse_button = .Right;
+            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
+            array_add (*g_message_queue, msg);
+
+            NSApp.sendEvent (NSApp, event);
+
+        case NSEventTypeOtherMouseUp;
+            msg : Message;
+            msg.window = window;
+            msg.kind = .Mouse_Button_Released;
+            msg.mouse_button = .Middle;
+            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
+            array_add (*g_message_queue, msg);
+
+            NSApp.sendEvent (NSApp, event);
+
+        case NSEventTypeMouseMoved;
+            msg : Message;
+            msg.window = window;
+            msg.kind = .Mouse_Moved;
+            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
+            array_add (*g_message_queue, msg);
+
+            NSApp.sendEvent (NSApp, event);
+
+        case NSEventTypeScrollWheel;
+            func: (self: *void, op: Selector) -> CGFloat #c_call;
+            func = xx objc_msgSend;
+
+            msg : Message;
+            msg.window = window;
+            msg.kind = .Mouse_Wheel;
+            msg.mouse_wheel_x = xx func (event, g_selector.scrollingDeltaX);
+            msg.mouse_wheel_y = xx func (event, g_selector.scrollingDeltaY);
+            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
+            array_add (*g_message_queue, msg);
+
+            NSApp.sendEvent (NSApp, event);
+
+        case NSEventTypeMouseEntered;
+            msg : Message;
+            msg.window = window;
+            msg.kind = .Mouse_Entered_Window;
+            array_add (*g_message_queue, msg);
+
+            NSApp.sendEvent (NSApp, event);
+
+        case NSEventTypeMouseExited;
+            msg : Message;
+            msg.window = window;
+            msg.kind = .Mouse_Left_Window;
+            array_add (*g_message_queue, msg);
+
+            NSApp.sendEvent (NSApp, event);
+
+        case;
+            NSApp.sendEvent (NSApp, event);
+        }
     }
 
     NSApp.updateWindows (NSApp);
 
-    return .[];
+    return g_message_queue;
 }
 
 SetCursor :: inline (window : *Window, cursor : SystemCursor) #no_context
@@ -463,3 +674,150 @@ SetClipboardTextData :: (text : string)
 ClearClipboard :: inline ()
 {
 }
+
+/*
+CocoaKeyCodeToKeyCode :: (cocoa : u16) -> KeyCode #must
+{
+    #insert -> string
+    {
+        builder : String_Builder;
+
+        append (*builder, "if cocoa ==\n{\n");
+        for VK_To_Key_Code_Map
+        {
+            print_to_builder (*builder, "case .%; return .%;\n", it.vk, it.key_code);
+        }
+        append (*builder, "}\n");
+
+        return builder_to_string (*builder);
+    };
+
+    return .Invalid;
+}
+
+KeyCodeToCocoaKeyCode :: (key_code : KeyCode) -> u16 #must
+{
+}
+
+VKKeyCodePair :: struct
+{
+    vk : Win32.VIRTUAL_KEY;
+    key_code : KeyCode;
+}
+
+VK_To_Key_Code_Map :: VKKeyCodePair.[
+    .{ .VK_BACK, .Backspace },
+    .{ .VK_TAB, .Tab },
+    .{ .VK_CLEAR, .Clear },
+    .{ .VK_RETURN, .Return },
+    .{ .VK_SHIFT, .Shift },
+    .{ .VK_CONTROL, .Ctrl },
+    .{ .VK_MENU, .Alt },
+    .{ .VK_PAUSE, .Pause },
+    .{ .VK_CAPITAL, .Caps_Lock },
+    .{ .VK_ESCAPE, .Escape },
+    .{ .VK_SPACE, .Space },
+    .{ .VK_PRIOR, .Page_Up },
+    .{ .VK_NEXT, .Page_Down },
+    .{ .VK_END, .End },
+    .{ .VK_HOME, .Home },
+    .{ .VK_LEFT, .Left },
+    .{ .VK_UP, .Up },
+    .{ .VK_RIGHT, .Right },
+    .{ .VK_DOWN, .Down },
+    .{ .VK_SELECT, .Select },
+    .{ .VK_PRINT, .Print },
+    .{ .VK_EXECUTE, .Execute },
+    .{ .VK_SNAPSHOT, .Print_Screen },
+    .{ .VK_INSERT, .Insert },
+    .{ .VK_DELETE, .Delete },
+    .{ .VK_HELP, .Help },
+    .{ .VK_0, .Zero },
+    .{ .VK_1, .One },
+    .{ .VK_2, .Two },
+    .{ .VK_3, .Three },
+    .{ .VK_4, .Four },
+    .{ .VK_5, .Five },
+    .{ .VK_6, .Six },
+    .{ .VK_7, .Seven },
+    .{ .VK_8, .Eight },
+    .{ .VK_9, .Nine },
+    .{ .VK_A, .A },
+    .{ .VK_B, .B },
+    .{ .VK_C, .C },
+    .{ .VK_D, .D },
+    .{ .VK_E, .E },
+    .{ .VK_F, .F },
+    .{ .VK_G, .G },
+    .{ .VK_H, .H },
+    .{ .VK_I, .I },
+    .{ .VK_J, .J },
+    .{ .VK_K, .K },
+    .{ .VK_L, .L },
+    .{ .VK_M, .M },
+    .{ .VK_N, .N },
+    .{ .VK_O, .O },
+    .{ .VK_P, .P },
+    .{ .VK_Q, .Q },
+    .{ .VK_R, .R },
+    .{ .VK_S, .S },
+    .{ .VK_T, .T },
+    .{ .VK_U, .U },
+    .{ .VK_V, .V },
+    .{ .VK_W, .W },
+    .{ .VK_X, .X },
+    .{ .VK_Y, .Y },
+    .{ .VK_Z, .Z },
+    .{ .VK_LWIN, .Left_Super },
+    .{ .VK_RWIN, .Right_Super },
+    .{ .VK_NUMPAD0, .Numpad0 },
+    .{ .VK_NUMPAD1, .Numpad1 },
+    .{ .VK_NUMPAD2, .Numpad2 },
+    .{ .VK_NUMPAD3, .Numpad3 },
+    .{ .VK_NUMPAD4, .Numpad4 },
+    .{ .VK_NUMPAD5, .Numpad5 },
+    .{ .VK_NUMPAD6, .Numpad6 },
+    .{ .VK_NUMPAD7, .Numpad7 },
+    .{ .VK_NUMPAD8, .Numpad8 },
+    .{ .VK_NUMPAD9, .Numpad9 },
+    .{ .VK_MULTIPLY, .Multiply },
+    .{ .VK_ADD, .Add },
+    .{ .VK_SEPARATOR, .Separator },
+    .{ .VK_SUBTRACT, .Subtract },
+    .{ .VK_DECIMAL, .Decimal },
+    .{ .VK_DIVIDE, .Divide },
+    .{ .VK_F1, .F1 },
+    .{ .VK_F2, .F2 },
+    .{ .VK_F3, .F3 },
+    .{ .VK_F4, .F4 },
+    .{ .VK_F5, .F5 },
+    .{ .VK_F6, .F6 },
+    .{ .VK_F7, .F7 },
+    .{ .VK_F8, .F8 },
+    .{ .VK_F9, .F9 },
+    .{ .VK_F10, .F10 },
+    .{ .VK_F11, .F11 },
+    .{ .VK_F12, .F12 },
+    .{ .VK_NUMLOCK, .Num_Lock },
+    .{ .VK_SCROLL, .Scroll_Lock },
+    .{ .VK_LSHIFT, .Left_Shift },
+    .{ .VK_RSHIFT, .Right_Shift },
+    .{ .VK_LCONTROL, .Left_Ctrl },
+    .{ .VK_RCONTROL, .Right_Ctrl },
+    .{ .VK_LMENU, .Left_Alt },
+    .{ .VK_RMENU, .Right_Alt },
+    .{ .VK_OEM_1, .OEM1 },
+    .{ .VK_OEM_PLUS, .OEM_Plus },
+    .{ .VK_OEM_COMMA, .OEM_Comma },
+    .{ .VK_OEM_MINUS, .OEM_Minus },
+    .{ .VK_OEM_PERIOD, .OEM_Period },
+    .{ .VK_OEM_2, .OEM2 },
+    .{ .VK_OEM_3, .OEM3 },
+    .{ .VK_OEM_4, .OEM4 },
+    .{ .VK_OEM_5, .OEM5 },
+    .{ .VK_OEM_6, .OEM6 },
+    .{ .VK_OEM_7, .OEM7 },
+    .{ .VK_OEM_8, .OEM8 },
+    .{ .VK_OEM_102, .OEM102 }
+];
+*/
