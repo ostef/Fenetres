@@ -142,7 +142,8 @@ CreateWindow :: (
     target_screen := NSScreen.mainScreen ();
 
     target_frame : NSRect;
-    // We set the position afterwards
+    // We set the position afterwards, because we need to know some info
+    // about the already created window to properly position it
     target_frame.origin = .{0, 0};
     target_frame.size = .{xx width, xx height};
 
@@ -255,6 +256,14 @@ GetWindowPosition :: inline (window : *Window) -> x : s32, y : s32 #no_context
 
 SetWindowPosition :: inline (window : *Window, x : s32, y : s32) #no_context
 {
+    ctx : Context;
+    push_context ctx
+    {
+        _, height := GetWindowSize (window);
+        point := InvertY (GetWindowScreen (window), .{xx x, xx y});
+        point.y -= xx height;
+        window.setFrameOrigin (window, point);
+    }
 }
 
 GetWindowSize :: inline (window : *Window) -> width : s32, height : s32 #no_context
@@ -270,6 +279,14 @@ GetWindowSize :: inline (window : *Window) -> width : s32, height : s32 #no_cont
 
 SetWindowSize :: inline (window : *Window, width : s32, height : s32) #no_context
 {
+    ctx : Context;
+    push_context ctx
+    {
+        rect := window.frame (window);
+        rect.size.width = xx width;
+        rect.size.height = xx height;
+        window.setFrame (window, rect, NO);
+    }
 }
 
 GetViewportPosition :: inline (window : *Window) -> width : s32, height : s32 #no_context
@@ -285,6 +302,14 @@ GetViewportPosition :: inline (window : *Window) -> width : s32, height : s32 #n
 
 SetViewportPosition :: inline (window : *Window, x : s32, y : s32) #no_context
 {
+    ctx : Context;
+    push_context ctx
+    {
+        _, height := GetViewportSize (window);
+        point := InvertY (GetWindowScreen (window), .{xx x, xx y});
+        point.y -= xx height;
+        window.setFrameOrigin (window, point);
+    }
 }
 
 GetViewportSize :: inline (window : *Window) -> width : s32, height : s32 #no_context
@@ -301,6 +326,14 @@ GetViewportSize :: inline (window : *Window) -> width : s32, height : s32 #no_co
 
 SetViewportSize :: inline (window : *Window, width : s32, height : s32) #no_context
 {
+    ctx : Context;
+    push_context ctx
+    {
+        rect := window.frame (window);
+        rect.size.width = xx width;
+        rect.size.height = xx (height + GetWindowTitleBarHeight (window));
+        window.setFrame (window, rect, NO);
+    }
 }
 
 GetFocusedWindow :: () -> *Window #must, non_fenetres_window_focused : bool #no_context
