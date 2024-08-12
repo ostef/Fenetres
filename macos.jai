@@ -582,10 +582,16 @@ WindowToScreenPosition :: inline (window : *Window, x : s32, y : s32) -> x : s32
 
 GetMousePosition :: inline (window : *Window) -> x : s32, y : s32 #no_context
 {
+    x, y := GetMousePosition ();
+    x, y = ScreenToWindowPosition (window, x, y);
+
+    return x, y;
 }
 
 SetMousePosition :: inline (window : *Window, x : s32, y : s32) #no_context
 {
+    x, y = WindowToScreenPosition (window);
+    SetMousePosition (x, y);
 }
 
 SetMouseCapture :: inline (window : *Window, capture : bool) #no_context
@@ -654,7 +660,7 @@ PollMessages :: () -> []Message
             if mods & NSEventModifierFlagCommand
                 msg.mods |= .Cmd;
 
-            // msg.key_code = CocoaKeyCodeToKeyCode (event.keyCode (event));
+            msg.key_code = CocoaKeyCodeToKeyCode (event.keyCode (event));
             array_add (*g_message_queue, msg);
 
         case NSEventTypeLeftMouseDown;
@@ -813,7 +819,6 @@ ClearClipboard :: inline ()
 {
 }
 
-/*
 CocoaKeyCodeToKeyCode :: (cocoa : u16) -> KeyCode #must
 {
     #insert -> string
@@ -823,7 +828,7 @@ CocoaKeyCodeToKeyCode :: (cocoa : u16) -> KeyCode #must
         append (*builder, "if cocoa ==\n{\n");
         for VK_To_Key_Code_Map
         {
-            print_to_builder (*builder, "case .%; return .%;\n", it.vk, it.key_code);
+            print_to_builder (*builder, "case %; return .%;\n", it.vk, it.key_code);
         }
         append (*builder, "}\n");
 
@@ -835,127 +840,234 @@ CocoaKeyCodeToKeyCode :: (cocoa : u16) -> KeyCode #must
 
 KeyCodeToCocoaKeyCode :: (key_code : KeyCode) -> u16 #must
 {
+    #insert -> string
+    {
+        builder : String_Builder;
+
+        append (*builder, "if key_code ==\n{\n");
+        for VK_To_Key_Code_Map
+        {
+            print_to_builder (*builder, "case .%; return %;\n", it.key_code, it.vk);
+        }
+        append (*builder, "}\n");
+
+        return builder_to_string (*builder);
+    };
+
+    return 0;
 }
 
 VKKeyCodePair :: struct
 {
-    vk : Win32.VIRTUAL_KEY;
+    vk : u16;
     key_code : KeyCode;
 }
 
 VK_To_Key_Code_Map :: VKKeyCodePair.[
-    .{ .VK_BACK, .Backspace },
-    .{ .VK_TAB, .Tab },
-    .{ .VK_CLEAR, .Clear },
-    .{ .VK_RETURN, .Return },
-    .{ .VK_SHIFT, .Shift },
-    .{ .VK_CONTROL, .Ctrl },
-    .{ .VK_MENU, .Alt },
-    .{ .VK_PAUSE, .Pause },
-    .{ .VK_CAPITAL, .Caps_Lock },
-    .{ .VK_ESCAPE, .Escape },
-    .{ .VK_SPACE, .Space },
-    .{ .VK_PRIOR, .Page_Up },
-    .{ .VK_NEXT, .Page_Down },
-    .{ .VK_END, .End },
-    .{ .VK_HOME, .Home },
-    .{ .VK_LEFT, .Left },
-    .{ .VK_UP, .Up },
-    .{ .VK_RIGHT, .Right },
-    .{ .VK_DOWN, .Down },
-    .{ .VK_SELECT, .Select },
-    .{ .VK_PRINT, .Print },
-    .{ .VK_EXECUTE, .Execute },
-    .{ .VK_SNAPSHOT, .Print_Screen },
-    .{ .VK_INSERT, .Insert },
-    .{ .VK_DELETE, .Delete },
-    .{ .VK_HELP, .Help },
-    .{ .VK_0, .Zero },
-    .{ .VK_1, .One },
-    .{ .VK_2, .Two },
-    .{ .VK_3, .Three },
-    .{ .VK_4, .Four },
-    .{ .VK_5, .Five },
-    .{ .VK_6, .Six },
-    .{ .VK_7, .Seven },
-    .{ .VK_8, .Eight },
-    .{ .VK_9, .Nine },
-    .{ .VK_A, .A },
-    .{ .VK_B, .B },
-    .{ .VK_C, .C },
-    .{ .VK_D, .D },
-    .{ .VK_E, .E },
-    .{ .VK_F, .F },
-    .{ .VK_G, .G },
-    .{ .VK_H, .H },
-    .{ .VK_I, .I },
-    .{ .VK_J, .J },
-    .{ .VK_K, .K },
-    .{ .VK_L, .L },
-    .{ .VK_M, .M },
-    .{ .VK_N, .N },
-    .{ .VK_O, .O },
-    .{ .VK_P, .P },
-    .{ .VK_Q, .Q },
-    .{ .VK_R, .R },
-    .{ .VK_S, .S },
-    .{ .VK_T, .T },
-    .{ .VK_U, .U },
-    .{ .VK_V, .V },
-    .{ .VK_W, .W },
-    .{ .VK_X, .X },
-    .{ .VK_Y, .Y },
-    .{ .VK_Z, .Z },
-    .{ .VK_LWIN, .Left_Super },
-    .{ .VK_RWIN, .Right_Super },
-    .{ .VK_NUMPAD0, .Numpad0 },
-    .{ .VK_NUMPAD1, .Numpad1 },
-    .{ .VK_NUMPAD2, .Numpad2 },
-    .{ .VK_NUMPAD3, .Numpad3 },
-    .{ .VK_NUMPAD4, .Numpad4 },
-    .{ .VK_NUMPAD5, .Numpad5 },
-    .{ .VK_NUMPAD6, .Numpad6 },
-    .{ .VK_NUMPAD7, .Numpad7 },
-    .{ .VK_NUMPAD8, .Numpad8 },
-    .{ .VK_NUMPAD9, .Numpad9 },
-    .{ .VK_MULTIPLY, .Multiply },
-    .{ .VK_ADD, .Add },
-    .{ .VK_SEPARATOR, .Separator },
-    .{ .VK_SUBTRACT, .Subtract },
-    .{ .VK_DECIMAL, .Decimal },
-    .{ .VK_DIVIDE, .Divide },
-    .{ .VK_F1, .F1 },
-    .{ .VK_F2, .F2 },
-    .{ .VK_F3, .F3 },
-    .{ .VK_F4, .F4 },
-    .{ .VK_F5, .F5 },
-    .{ .VK_F6, .F6 },
-    .{ .VK_F7, .F7 },
-    .{ .VK_F8, .F8 },
-    .{ .VK_F9, .F9 },
-    .{ .VK_F10, .F10 },
-    .{ .VK_F11, .F11 },
-    .{ .VK_F12, .F12 },
-    .{ .VK_NUMLOCK, .Num_Lock },
-    .{ .VK_SCROLL, .Scroll_Lock },
-    .{ .VK_LSHIFT, .Left_Shift },
-    .{ .VK_RSHIFT, .Right_Shift },
-    .{ .VK_LCONTROL, .Left_Ctrl },
-    .{ .VK_RCONTROL, .Right_Ctrl },
-    .{ .VK_LMENU, .Left_Alt },
-    .{ .VK_RMENU, .Right_Alt },
-    .{ .VK_OEM_1, .OEM1 },
-    .{ .VK_OEM_PLUS, .OEM_Plus },
-    .{ .VK_OEM_COMMA, .OEM_Comma },
-    .{ .VK_OEM_MINUS, .OEM_Minus },
-    .{ .VK_OEM_PERIOD, .OEM_Period },
-    .{ .VK_OEM_2, .OEM2 },
-    .{ .VK_OEM_3, .OEM3 },
-    .{ .VK_OEM_4, .OEM4 },
-    .{ .VK_OEM_5, .OEM5 },
-    .{ .VK_OEM_6, .OEM6 },
-    .{ .VK_OEM_7, .OEM7 },
-    .{ .VK_OEM_8, .OEM8 },
-    .{ .VK_OEM_102, .OEM102 }
+    .{OSX_VK_ESCAPE, .Escape},
+    .{OSX_VK_F1, .F1},
+    .{OSX_VK_F2, .F2},
+    .{OSX_VK_F3, .F3},
+    .{OSX_VK_F4, .F4},
+    .{OSX_VK_F5, .F5},
+    .{OSX_VK_F6, .F6},
+    .{OSX_VK_F7, .F7},
+    .{OSX_VK_F8, .F8},
+    .{OSX_VK_F9, .F9},
+    .{OSX_VK_F10, .F10},
+    .{OSX_VK_F11, .F11},
+    .{OSX_VK_F12, .F12},
+    .{OSX_VK_BACK_TICK, .Backtick},
+    .{OSX_VK_1, .One},
+    .{OSX_VK_2, .Two},
+    .{OSX_VK_3, .Three},
+    .{OSX_VK_4, .Four},
+    .{OSX_VK_5, .Five},
+    .{OSX_VK_6, .Six},
+    .{OSX_VK_7, .Seven},
+    .{OSX_VK_8, .Eight},
+    .{OSX_VK_9, .Nine},
+    .{OSX_VK_0, .Zero},
+    .{OSX_VK_DASH, .OEM_Minus},
+    .{OSX_VK_EQUAL, .OEM_Plus},
+    .{OSX_VK_BACKSPACE, .Backspace},
+    .{OSX_VK_TAB, .Tab},
+    .{OSX_VK_Q, .Q},
+    .{OSX_VK_W, .W},
+    .{OSX_VK_E, .E},
+    .{OSX_VK_R, .R},
+    .{OSX_VK_T, .T},
+    .{OSX_VK_Y, .Y},
+    .{OSX_VK_U, .U},
+    .{OSX_VK_I, .I},
+    .{OSX_VK_O, .O},
+    .{OSX_VK_P, .P},
+    .{OSX_VK_LBRACKET, .Open_Bracket},
+    .{OSX_VK_RBRACKET, .Close_Bracket},
+    .{OSX_VK_BACKSLASH, .Pipe},
+    .{OSX_VK_CAPS_LOCK, .Caps_Lock},
+    .{OSX_VK_A, .A},
+    .{OSX_VK_S, .S},
+    .{OSX_VK_D, .D},
+    .{OSX_VK_F, .F},
+    .{OSX_VK_G, .G},
+    .{OSX_VK_H, .H},
+    .{OSX_VK_J, .J},
+    .{OSX_VK_K, .K},
+    .{OSX_VK_L, .L},
+    .{OSX_VK_COLON, .Colon},
+    .{OSX_VK_QUOTE, .Quote},
+    .{OSX_VK_RETURN, .Return},
+    .{OSX_VK_SHIFT, .Shift},
+    .{OSX_VK_Z, .Z},
+    .{OSX_VK_X, .X},
+    .{OSX_VK_C, .C},
+    .{OSX_VK_V, .V},
+    .{OSX_VK_B, .B},
+    .{OSX_VK_N, .N},
+    .{OSX_VK_M, .M},
+    .{OSX_VK_COMMA, .OEM_Comma},
+    .{OSX_VK_PERIOD, .OEM_Period},
+    .{OSX_VK_FWD_SLASH, .Slash},
+    .{OSX_VK_CONTROL, .Ctrl},
+    .{OSX_VK_OPTION, .Alt},
+    .{OSX_VK_COMMAND, .Cmd},
+    .{OSX_VK_RIGHT_SHIFT, .Right_Shift},
+    .{OSX_VK_RIGHT_COMMAND, .Right_Cmd},
+    .{OSX_VK_RIGHT_OPTION, .Right_Alt},
+    .{OSX_VK_RIGHT_CONTROL, .Right_Ctrl},
+    .{OSX_VK_SPACEBAR, .Space},
+    .{OSX_VK_INSERT, .Insert},
+    .{OSX_VK_HOME, .Home},
+    .{OSX_VK_PAGE_UP, .Page_Up},
+    .{OSX_VK_DELETE, .Delete},
+    .{OSX_VK_END, .End},
+    .{OSX_VK_PAGE_DOWN, .Page_Down},
+    .{OSX_VK_UP, .Up},
+    .{OSX_VK_DOWN, .Down},
+    .{OSX_VK_RIGHT, .Right},
+    .{OSX_VK_LEFT, .Left},
+    .{OSX_VK_NUMLOCK, .Num_Lock},
+    .{OSX_VK_NUMPAD_EQUALS, .Numpad_Equals},
+    .{OSX_VK_NUMPAD_DIVIDE, .Divide},
+    .{OSX_VK_NUMPAD_MULT, .Multiply},
+    .{OSX_VK_NUMPAD_7, .Numpad7},
+    .{OSX_VK_NUMPAD_8, .Numpad8},
+    .{OSX_VK_NUMPAD_9, .Numpad9},
+    .{OSX_VK_NUMPAD_MINUS, .Subtract},
+    .{OSX_VK_NUMPAD_4, .Numpad4},
+    .{OSX_VK_NUMPAD_5, .Numpad5},
+    .{OSX_VK_NUMPAD_6, .Numpad6},
+    .{OSX_VK_NUMPAD_PLUS, .Add},
+    .{OSX_VK_NUMPAD_1, .Numpad1},
+    .{OSX_VK_NUMPAD_2, .Numpad2},
+    .{OSX_VK_NUMPAD_3, .Numpad3},
+    .{OSX_VK_NUMPAD_ENTER, .Separator},
+    .{OSX_VK_NUMPAD_0, .Numpad0},
+    .{OSX_VK_NUMPAD_PERIOD, .Decimal},
 ];
-*/
+
+OSX_VK_ESCAPE        :: 53;
+OSX_VK_F1            :: 122;
+OSX_VK_F2            :: 120;
+OSX_VK_F3            :: 99;
+OSX_VK_F4            :: 118;
+OSX_VK_F5            :: 96;
+OSX_VK_F6            :: 97;
+OSX_VK_F7            :: 98;
+OSX_VK_F8            :: 100;
+OSX_VK_F9            :: 101;
+OSX_VK_F10           :: 109;
+OSX_VK_F11           :: 103;
+OSX_VK_F12           :: 111;
+OSX_VK_F13           :: 105;
+OSX_VK_F14           :: 107;
+OSX_VK_F15           :: 113;
+OSX_VK_BACK_TICK     :: 50;
+OSX_VK_1             :: 18;
+OSX_VK_2             :: 19;
+OSX_VK_3             :: 20;
+OSX_VK_4             :: 21;
+OSX_VK_5             :: 23;
+OSX_VK_6             :: 22;
+OSX_VK_7             :: 26;
+OSX_VK_8             :: 28;
+OSX_VK_9             :: 25;
+OSX_VK_0             :: 29;
+OSX_VK_DASH          :: 27;
+OSX_VK_EQUAL         :: 24;
+OSX_VK_BACKSPACE     :: 51;
+OSX_VK_TAB           :: 48;
+OSX_VK_Q             :: 12;
+OSX_VK_W             :: 13;
+OSX_VK_E             :: 14;
+OSX_VK_R             :: 15;
+OSX_VK_T             :: 17;
+OSX_VK_Y             :: 16;
+OSX_VK_U             :: 32;
+OSX_VK_I             :: 34;
+OSX_VK_O             :: 31;
+OSX_VK_P             :: 35;
+OSX_VK_LBRACKET      :: 33;
+OSX_VK_RBRACKET      :: 30;
+OSX_VK_BACKSLASH     :: 42;
+OSX_VK_CAPS_LOCK     :: 57;
+OSX_VK_A             :: 0;
+OSX_VK_S             :: 1;
+OSX_VK_D             :: 2;
+OSX_VK_F             :: 3;
+OSX_VK_G             :: 5;
+OSX_VK_H             :: 4;
+OSX_VK_J             :: 38;
+OSX_VK_K             :: 40;
+OSX_VK_L             :: 37;
+OSX_VK_COLON         :: 41;
+OSX_VK_QUOTE         :: 39;
+OSX_VK_RETURN        :: 36;
+OSX_VK_SHIFT         :: 56;
+OSX_VK_Z             :: 6;
+OSX_VK_X             :: 7;
+OSX_VK_C             :: 8;
+OSX_VK_V             :: 9;
+OSX_VK_B             :: 11;
+OSX_VK_N             :: 45;
+OSX_VK_M             :: 46;
+OSX_VK_COMMA         :: 43;
+OSX_VK_PERIOD        :: 47;
+OSX_VK_FWD_SLASH     :: 44;
+OSX_VK_CONTROL       :: 59;
+OSX_VK_OPTION        :: 58;
+OSX_VK_COMMAND       :: 55;
+OSX_VK_RIGHT_SHIFT   :: 60;
+OSX_VK_RIGHT_COMMAND :: 54;
+OSX_VK_RIGHT_OPTION  :: 61;
+OSX_VK_RIGHT_CONTROL :: 62;
+OSX_VK_SPACEBAR      :: 49;
+OSX_VK_INSERT        :: 114;
+OSX_VK_HOME          :: 115;
+OSX_VK_PAGE_UP       :: 116;
+OSX_VK_DELETE        :: 117;
+OSX_VK_END           :: 119;
+OSX_VK_PAGE_DOWN     :: 121;
+OSX_VK_UP            :: 126;
+OSX_VK_DOWN          :: 125;
+OSX_VK_RIGHT         :: 124;
+OSX_VK_LEFT          :: 123;
+OSX_VK_NUMLOCK       :: 71;
+OSX_VK_NUMPAD_EQUALS :: 81;
+OSX_VK_NUMPAD_DIVIDE :: 75;
+OSX_VK_NUMPAD_MULT   :: 67;
+OSX_VK_NUMPAD_7      :: 89;
+OSX_VK_NUMPAD_8      :: 91;
+OSX_VK_NUMPAD_9      :: 92;
+OSX_VK_NUMPAD_MINUS  :: 78;
+OSX_VK_NUMPAD_4      :: 86;
+OSX_VK_NUMPAD_5      :: 87;
+OSX_VK_NUMPAD_6      :: 88;
+OSX_VK_NUMPAD_PLUS   :: 69;
+OSX_VK_NUMPAD_1      :: 83;
+OSX_VK_NUMPAD_2      :: 84;
+OSX_VK_NUMPAD_3      :: 85;
+OSX_VK_NUMPAD_ENTER  :: 76;
+OSX_VK_NUMPAD_0      :: 82;
+OSX_VK_NUMPAD_PERIOD :: 65;

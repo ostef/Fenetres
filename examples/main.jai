@@ -35,8 +35,8 @@ main :: ()
     {
         for Fenetres.PollMessages ()
         {
-            // if it.kind != .Mouse_Moved && it.kind != .Mouse_Raw_Moved
-            //     Fenetres.PrintMessage (it);
+            if it.kind != .Mouse_Moved && it.kind != .Mouse_Raw_Moved
+                Fenetres.PrintMessage (it);
 
             if it.kind == .Window_Closed
                 quit = true;

@@ -185,6 +185,7 @@ KeyCode :: enum u8
     Shift;
     Ctrl;
     Alt;
+    Cmd;
     Left_Shift;
     Right_Shift;
     Left_Ctrl;
@@ -193,6 +194,8 @@ KeyCode :: enum u8
     Right_Alt;
     Left_Super;
     Right_Super;
+    Left_Cmd;
+    Right_Cmd;
     Pause;
     Caps_Lock;
     Escape;
@@ -234,6 +237,7 @@ KeyCode :: enum u8
     Numpad7;
     Numpad8;
     Numpad9;
+    Numpad_Equals;
     Scroll_Lock;
     Num_Lock;
     Multiply;
