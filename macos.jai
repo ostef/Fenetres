@@ -47,6 +47,7 @@ g_all_windows : [..]*Window;
 g_initialized : bool;
 g_message_queue : [..]Message;
 g_non_polled_messages : [..]Message;
+g_key_mod_state : KeyMods;
 
 InitObjectiveCStuff :: ()
 {
@@ -640,6 +641,44 @@ PollMessages :: () -> []Message
         if type ==
         {
         case NSEventTypeFlagsChanged;
+            msg : Message;
+            msg.window = window;
+
+            mods := event.modifierFlags (event);
+            if mods & NSEventModifierFlagShift
+                msg.mods |= .Shift;
+            if mods & NSEventModifierFlagControl
+                msg.mods |= .Ctrl;
+            if mods & NSEventModifierFlagOption
+                msg.mods |= .Option;
+            if mods & NSEventModifierFlagCommand
+                msg.mods |= .Cmd;
+            if mods & NSEventModifierFlagCapsLock
+                msg.mods |= .Caps_Lock;
+
+            Helper :: (key_code : KeyCode, mod : KeyMods) #expand
+            {
+                if `msg.mods & mod && !(g_key_mod_state & mod)
+                {
+                    msg.kind = .Key_Pressed;
+                    msg.key_code = key_code;
+                    array_add (*g_message_queue, msg);
+                }
+                if !(msg.mods & mod) && g_key_mod_state & mod
+                {
+                    msg.kind = .Key_Released;
+                    msg.key_code = key_code;
+                    array_add (*g_message_queue, msg);
+                }
+            }
+
+            Helper (.Shift, .Shift);
+            Helper (.Ctrl, .Ctrl);
+            Helper (.Option, .Option);
+            Helper (.Cmd, .Cmd);
+            Helper (.Caps_Lock, .Caps_Lock);
+            g_key_mod_state = msg.mods;
+
         case NSEventTypeKeyDown; #through;
         case NSEventTypeKeyUp;
             msg : Message;
@@ -659,6 +698,8 @@ PollMessages :: () -> []Message
                 msg.mods |= .Option;
             if mods & NSEventModifierFlagCommand
                 msg.mods |= .Cmd;
+            if mods & NSEventModifierFlagCapsLock
+                msg.mods |= .Caps_Lock;
 
             msg.key_code = CocoaKeyCodeToKeyCode (event.keyCode (event));
             array_add (*g_message_queue, msg);
@@ -805,6 +846,7 @@ RemoveCursorConstraint :: inline () -> bool #no_context
 
 GetKeyModState :: inline () -> KeyMods #must #no_context
 {
+    return g_key_mod_state;
 }
 
 GetClipboardTextData :: () -> string #must

@@ -171,6 +171,7 @@ KeyMods :: enum_flags u8
     Shift;
     Alt;
     Cmd;
+    Caps_Lock;
 
     Option :: Alt;
 }
@@ -185,6 +186,7 @@ KeyCode :: enum u8
     Shift;
     Ctrl;
     Alt;
+    Option :: Alt;
     Cmd;
     Left_Shift;
     Right_Shift;
