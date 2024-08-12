@@ -6,9 +6,6 @@ Win32 :: #import "Win32" (WGL = true, GDI_Basics = true);
 
 #scope_export
 
-// @Todo: choose OpenGL version
-// @Todo: share lists
-
 GLContext :: Win32.HGLRC;
 
 GLContextFlags :: enum_flags
