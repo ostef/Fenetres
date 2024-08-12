@@ -147,17 +147,16 @@ WindowDelegate :: struct
     windowWillClose :: (using self : *WindowDelegate, sel : Selector, notification : *NSNotification) #c_call
     {
         ctx : Context;
-        push_context ctx
+        push_context, defer_pop ctx;
+
+        ns_window := cast (*NSWindow) notification.object (notification);
+        window := GetWindowFromPlatformHandle (ns_window);
+        if window
         {
-            ns_window := cast (*NSWindow) notification.object (notification);
-            window := GetWindowFromPlatformHandle (ns_window);
-            if window
-            {
-                msg : Message;
-                msg.kind = .Window_Closed;
-                msg.window = window;
-                array_add (*g_non_polled_messages, msg);
-            }
+            msg : Message;
+            msg.kind = .Window_Closed;
+            msg.window = window;
+            array_add (*g_non_polled_messages, msg);
         }
     }
     @ObjectiveCMethod
@@ -165,19 +164,113 @@ WindowDelegate :: struct
     windowDidResize :: (using self : *WindowDelegate, sel : Selector, notification : *NSNotification) #c_call
     {
         ctx : Context;
-        push_context ctx
+        push_context, defer_pop ctx;
+
+        ns_window := cast (*NSWindow) notification.object (notification);
+        window := GetWindowFromPlatformHandle (ns_window);
+        if window
         {
-            ns_window := cast (*NSWindow) notification.object (notification);
-            window := GetWindowFromPlatformHandle (ns_window);
-            if window
-            {
-                msg : Message;
-                msg.kind = .Window_Resized;
-                msg.window = window;
-                msg.window_w, msg.window_h = GetWindowSize (window);
-                msg.viewport_w, msg.viewport_h = GetViewportSize (window);
-                array_add (*g_non_polled_messages, msg);
-            }
+            msg : Message;
+            msg.kind = .Window_Resized;
+            msg.window = window;
+            msg.window_w, msg.window_h = GetWindowSize (window);
+            msg.viewport_w, msg.viewport_h = GetViewportSize (window);
+            array_add (*g_non_polled_messages, msg);
+        }
+    }
+    @ObjectiveCMethod
+
+    windowDidMove :: (using self : *WindowDelegate, sel : Selector, notification : *NSNotification) #c_call
+    {
+        ctx : Context;
+        push_context, defer_pop ctx;
+
+        ns_window := cast (*NSWindow) notification.object (notification);
+        window := GetWindowFromPlatformHandle (ns_window);
+        if window
+        {
+            msg : Message;
+            msg.kind = .Window_Moved;
+            msg.window = window;
+            msg.window_x, msg.window_y = GetWindowPosition (window);
+            array_add (*g_non_polled_messages, msg);
+        }
+    }
+    @ObjectiveCMethod
+
+    windowDidMiniaturize :: (using self : *WindowDelegate, sel : Selector, notification : *NSNotification) #c_call
+    {
+        ctx : Context;
+        push_context, defer_pop ctx;
+
+        ns_window := cast (*NSWindow) notification.object (notification);
+        window := GetWindowFromPlatformHandle (ns_window);
+        if window
+        {
+            msg : Message;
+            msg.kind = .Window_Minimized;
+            msg.window = window;
+            array_add (*g_non_polled_messages, msg);
+        }
+    }
+    @ObjectiveCMethod
+
+    windowDidDeminiaturize :: windowDidResize; @ObjectiveCMethod
+
+    windowDidEnterFullscreen :: (using self : *WindowDelegate, sel : Selector, notification : *NSNotification) #c_call
+    {
+        ctx : Context;
+        push_context, defer_pop ctx;
+
+        ns_window := cast (*NSWindow) notification.object (notification);
+        window := GetWindowFromPlatformHandle (ns_window);
+        if window
+        {
+            msg : Message;
+            msg.kind = .Window_Maximized;
+            msg.window = window;
+            array_add (*g_non_polled_messages, msg);
+
+            msg.kind = .Window_Resized;
+            msg.window_w, msg.window_h = GetWindowSize (window);
+            msg.viewport_w, msg.viewport_h = GetViewportSize (window);
+            array_add (*g_non_polled_messages, msg);
+        }
+    }
+    @ObjectiveCMethod
+
+    windowDidExitFullscreen :: windowDidResize; @ObjectiveCMethod
+
+    windowDidBecomeKey :: (using self : *WindowDelegate, sel : Selector, notification : *NSNotification) #c_call
+    {
+        ctx : Context;
+        push_context, defer_pop ctx;
+
+        ns_window := cast (*NSWindow) notification.object (notification);
+        window := GetWindowFromPlatformHandle (ns_window);
+        if window
+        {
+            msg : Message;
+            msg.kind = .Window_Received_Focus;
+            msg.window = window;
+            array_add (*g_non_polled_messages, msg);
+        }
+    }
+    @ObjectiveCMethod
+
+    windowDidResignKey :: (using self : *WindowDelegate, sel : Selector, notification : *NSNotification) #c_call
+    {
+        ctx : Context;
+        push_context, defer_pop ctx;
+
+        ns_window := cast (*NSWindow) notification.object (notification);
+        window := GetWindowFromPlatformHandle (ns_window);
+        if window
+        {
+            msg : Message;
+            msg.kind = .Window_Lost_Focus;
+            msg.window = window;
+            array_add (*g_non_polled_messages, msg);
         }
     }
     @ObjectiveCMethod
@@ -605,6 +698,12 @@ PollMessages :: () -> []Message
             msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
             array_add (*g_message_queue, msg);
 
+            msg.kind = .Mouse_Raw_Moved;
+            msg.mouse_delta_x = xx event.deltaX (event);
+            msg.mouse_delta_y = xx event.deltaY (event);
+            if msg.mouse_delta_x != 0 || msg.mouse_delta_y != 0
+                array_add (*g_message_queue, msg);
+
             NSApp.sendEvent (NSApp, event);
 
         case NSEventTypeScrollWheel;
@@ -617,7 +716,8 @@ PollMessages :: () -> []Message
             msg.mouse_wheel_x = xx func (event, g_selector.scrollingDeltaX);
             msg.mouse_wheel_y = xx func (event, g_selector.scrollingDeltaY);
             msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
-            array_add (*g_message_queue, msg);
+            if msg.mouse_wheel_x != 0 || msg.mouse_wheel_y != 0
+                array_add (*g_message_queue, msg);
 
             NSApp.sendEvent (NSApp, event);
 
