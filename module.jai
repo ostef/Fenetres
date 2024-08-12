@@ -8,6 +8,13 @@ case;
     #assert false "Unsupported OS";
 }
 
+DisplayInfo :: struct
+{
+    is_primary : bool;
+    x, y, w, h : s32;
+    dpi : s32;
+}
+
 Window_Default_Pos  :: -1;
 Window_Default_Size :: -1;
 

@@ -40,6 +40,7 @@ g_selector : struct
     scrollingDeltaY : Selector;
     locationInWindow : Selector;
     mouseLocation : Selector;
+    screens : Selector;
 };
 
 g_all_windows : [..]*Window;
@@ -277,6 +278,38 @@ WindowDelegate :: struct
 }
 
 #scope_export
+
+GetDisplays :: inline () -> []DisplayInfo #must
+{
+    InitObjectiveCStuff ();
+
+    func : (*void, Selector) -> *NSArray (*NSScreen) #c_call;
+    func = xx objc_msgSend;
+
+    screens := func (class (NSScreen), g_selector.screens);
+    defer release (screens);
+
+    count := screens.count (screens);
+    if count == 0
+        return .[];
+
+    result := NewArray (xx count, DisplayInfo);
+    for i : 0..count - 1
+    {
+        screen := screens.objectAtIndex (screens, i);
+        frame := screen.frame (screen);
+
+        display := *result[i];
+        display.is_primary = i == 0;
+        display.x = xx frame.origin.x;
+        display.y = xx frame.origin.y;
+        display.w = xx frame.size.width;
+        display.h = xx frame.size.height;
+        display.dpi = xx screen.backingScaleFactor (screen);
+    }
+
+    return result;
+}
 
 CreateWindow :: (
     title : string,

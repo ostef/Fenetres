@@ -6,6 +6,16 @@ Fenetres_GL :: #import "Fenetres/GL";
 
 main :: ()
 {
+    displays := Fenetres.GetDisplays ();
+    if displays.count == 0
+        print ("No displays\n");
+
+    for displays
+    {
+        print ("Display %: is_primary=%, bounds=% % % %, dpi=%\n",
+            it_index, it.is_primary, it.x, it.y, it.w, it.h, it.dpi);
+    }
+
     window := Fenetres.CreateWindow ("Fenetres Example", 1280, 720);
     defer Fenetres.DestroyWindow (window);
     WindowTests (window);
