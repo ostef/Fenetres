@@ -794,6 +794,39 @@ PollMessages :: () -> []Message
             msg.key_code = CocoaKeyCodeToKeyCode (event.keyCode (event));
             array_add (*g_message_queue, msg);
 
+            if msg.kind != .Key_Released
+            {
+                chars := event.characters (event);
+                len := chars.length (chars);
+                if chars &&  len > 0
+                {
+                    utf32_nsdata := chars.dataUsingEncoding (chars, NSUTF32LittleEndianStringEncoding);
+                    defer release (utf32_nsdata);
+
+                    utf32_data := cast (*u32) utf32_nsdata.bytes (utf32_nsdata);
+
+                    for i : 0..len - 1
+                    {
+                        input_msg : Message;
+                        input_msg.window = window;
+                        input_msg.kind = .Text_Input;
+                        input_msg.codepoint = utf32_data[i];
+                        input_msg.mods = msg.mods;
+
+                        if input_msg.codepoint <= 31
+                            continue;
+                        if input_msg.codepoint == 0x7f
+                            continue;
+
+                        // Skip Private Use Area U+F700 (this contains values for NS function keys)
+                        if (input_msg.codepoint & 0xff00) == 0xf700
+                            continue;
+
+                        array_add (*g_message_queue, input_msg);
+                    }
+                }
+            }
+
         case NSEventTypeLeftMouseDown;
             click_count := cast (NSInteger) objc_msgSend_typed (event, g_selector.clickCount);
 
