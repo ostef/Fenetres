@@ -65,8 +65,6 @@ main :: ()
                 quit = true;
         }
 
-        print ("% ms\n", delta_time * 1000);
-
         w, h := Fenetres.GetViewportSize (window);
         time := cast (float) seconds_since_init ();
 
