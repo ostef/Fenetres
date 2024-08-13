@@ -35,7 +35,7 @@ GetProcAddress :: (name : *u8) -> *void #c_call
     return POSIX.dlsym (g_gl_lib, name);
 }
 
-CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled, major_version : s32 = 0, minor_version : s32 = 0) -> GLContext #must
+CreateContextWithoutWindow :: (flags : GLContextFlags = 0, major_version : s32 = 0, minor_version : s32 = 0) -> GLContext #must
 {
     log_warning :: inline (fmt_str : string, args : ..Any, location := #caller_location, flags := Log_Flags.NONE, user_flags : u32 = 0)
     {
@@ -117,6 +117,18 @@ CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled
         return null;
     }
 
+    ctx.makeCurrentContext (ctx);
+    ctx.update (ctx);
+
+    return ctx;
+}
+
+CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled, major_version : s32 = 0, minor_version : s32 = 0) -> GLContext #must
+{
+    ctx := CreateContextWithoutWindow (flags, major_version, minor_version);
+    if !ctx
+        return null;
+
     gl_view := objc_init (objc_alloc (LightweightOpenGLView));
     gl_view.setGlContext (gl_view, ctx);
     gl_view.setWantsLayer (gl_view, YES);
@@ -129,7 +141,6 @@ CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled
     window.makeFirstResponder (window, gl_view);
     window.update (window);
 
-    ctx.makeCurrentContext (ctx);
     ctx.update (ctx);
 
     return ctx;

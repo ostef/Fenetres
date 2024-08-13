@@ -16,6 +16,12 @@ main :: ()
             it_index, it.is_primary, it.x, it.y, it.w, it.h, it.dpi);
     }
 
+    if !Fenetres_GL.LoadGL ()
+    {
+        log_error ("Could not load GL");
+        exit (1);
+    }
+
     window := Fenetres.CreateWindow ("Fenetres Example", 1280, 720);
     defer Fenetres.DestroyWindow (window);
     WindowTests (window);
@@ -27,8 +33,6 @@ main :: ()
 
     assert (Fenetres_GL.GetCurrentWindow () == window);
     assert (Fenetres_GL.GetCurrentContext () == gl_context);
-
-    gl_load (*gl, Fenetres_GL.GetProcAddress);
 
     major, minor := gl_get_version ();
     print ("GL version: %.%\n", major, minor);
