@@ -70,17 +70,26 @@ CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled
         );
     }
 
-    if major_version >= 4
+    array_add (*attribs, NSOpenGLPFAOpenGLProfile);
+
+    if major_version == 0 && minor_version == 0
+    {
+        major_version = 4;
+        minor_version = 1;
+        array_add (*attribs, NSOpenGLProfileVersion4_1Core);
+    }
+    else if major_version >= 4
     {
         if minor_version != 1
             log_error ("OpenGL version 4.% is not available on MacOS, using OpenGL 4.1", minor_version);
-
+        minor_version = 1;
         array_add (*attribs, NSOpenGLProfileVersion4_1Core);
     }
     else if major_version >= 3
     {
         if minor_version != 2
-            log_error ("OpenGL version 3.% is not available on MacOS, using OpenGL 4.2", minor_version);
+            log_error ("OpenGL version 3.% is not available on MacOS, using OpenGL 3.2", minor_version);
+        minor_version = 2;
 
         array_add (*attribs, NSOpenGLProfileVersion3_2Core);
     }
