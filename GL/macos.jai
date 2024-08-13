@@ -150,7 +150,8 @@ MakeCurrent :: inline (window : *Window, ctx : GLContext) #no_context
 
 ShareContexts :: inline (first : GLContext, second : GLContext) -> bool #no_context
 {
-    // log_error ("Unsupported on MacOS. The API will change to accept a sharing context as creating param");
+    log_error ("Unsupported after context creation on MacOS. Todo: add a parameter for this to CreateContext");
+    return false;
 }
 
 GetCurrentContext :: inline () -> GLContext #must #no_context
