@@ -664,8 +664,6 @@ GetMousePosition :: inline (window : *Window) -> x : s32, y : s32 #no_context
 
 SetMousePosition :: inline (window : *Window, x : s32, y : s32) #no_context
 {
-    x, y = WindowToScreenPosition (window);
-    SetMousePosition (x, y);
 }
 
 SetMouseCapture :: inline (window : *Window, capture : bool) #no_context
