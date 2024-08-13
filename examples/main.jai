@@ -22,7 +22,7 @@ main :: ()
         exit (1);
     }
 
-    window := Fenetres.CreateWindow ("Fenetres Example", 1280, 720);
+    window := Fenetres.CreateWindow ("My Cube Goes BOING BOING", 1280, 720);
     defer Fenetres.DestroyWindow (window);
     WindowTests (window);
 
@@ -118,7 +118,8 @@ WindowTests :: (window : *Fenetres.Window)
 
     x, y = Fenetres.GetViewportPosition (window);
     w, h = Fenetres.GetViewportSize (window);
-    print("% % % %\n", x, y, w, h);
+    px_w, px_h := Fenetres.GetViewportSizeInPixels (window);
+    print("% % % % % %\n", x, y, w, h, px_w, px_h);
 
     Fenetres.SetWindowPosition (window, 100, 100);
     x, y = Fenetres.GetWindowPosition (window);

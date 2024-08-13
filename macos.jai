@@ -489,48 +489,56 @@ SetWindowSize :: inline (window : *Window, width : s32, height : s32) #no_contex
 GetViewportPosition :: inline (window : *Window) -> width : s32, height : s32 #no_context
 {
     ctx : Context;
-    push_context ctx
-    {
-        x, y := GetWindowPosition (window);
+    push_context, defer_pop ctx;
 
-        return x, y + GetWindowTitleBarHeight (window);
-    }
+    x, y := GetWindowPosition (window);
+
+    return x, y + GetWindowTitleBarHeight (window);
 }
 
 SetViewportPosition :: inline (window : *Window, x : s32, y : s32) #no_context
 {
     ctx : Context;
-    push_context ctx
-    {
-        _, height := GetViewportSize (window);
-        point := InvertY (GetWindowScreen (window), .{xx x, xx y});
-        point.y -= xx height;
-        window.setFrameOrigin (window, point);
-    }
+    push_context, defer_pop ctx;
+
+    _, height := GetViewportSize (window);
+    point := InvertY (GetWindowScreen (window), .{xx x, xx y});
+    point.y -= xx height;
+    window.setFrameOrigin (window, point);
 }
 
 GetViewportSize :: inline (window : *Window) -> width : s32, height : s32 #no_context
 {
     ctx : Context;
-    push_context ctx
-    {
-        view := window.contentView (window);
-        rect := view.frame (view);
+    push_context, defer_pop ctx;
 
-        return xx rect.size.width, xx rect.size.height;
-    }
+    view := window.contentView (window);
+    rect := view.frame (view);
+
+    return xx rect.size.width, xx rect.size.height;
+}
+
+GetViewportSizeInPixels :: inline (window : *Window) -> px_width : s32, px_height : s32 #no_context
+{
+    ctx : Context;
+    push_context, defer_pop ctx;
+
+    screen := GetWindowScreen (window);
+    width, height := GetViewportSize (window);
+    scale := screen.backingScaleFactor (screen);
+
+    return xx (width * scale), xx (height * scale);
 }
 
 SetViewportSize :: inline (window : *Window, width : s32, height : s32) #no_context
 {
     ctx : Context;
-    push_context ctx
-    {
-        rect := window.frame (window);
-        rect.size.width = xx width;
-        rect.size.height = xx (height + GetWindowTitleBarHeight (window));
-        window.setFrame (window, rect, NO);
-    }
+    push_context, defer_pop ctx;
+
+    rect := window.frame (window);
+    rect.size.width = xx width;
+    rect.size.height = xx (height + GetWindowTitleBarHeight (window));
+    window.setFrame (window, rect, NO);
 }
 
 GetFocusedWindow :: () -> *Window #must, non_fenetres_window_focused : bool #no_context
