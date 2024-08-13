@@ -909,10 +909,12 @@ SetCursor :: inline (window : *Window, cursor : SystemCursor) #no_context
 
 SetCursorConstraint :: inline (x : s32, y : s32, w : s32, h : s32) -> bool #no_context
 {
+    return false;
 }
 
 RemoveCursorConstraint :: inline () -> bool #no_context
 {
+    return false;
 }
 
 GetKeyModState :: inline () -> KeyMods #must #no_context
@@ -922,6 +924,7 @@ GetKeyModState :: inline () -> KeyMods #must #no_context
 
 GetClipboardTextData :: () -> string #must
 {
+    return "";
 }
 
 SetClipboardTextData :: (text : string)
