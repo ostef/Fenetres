@@ -1,3 +1,7 @@
+// @Todo: make sure multiple screens are handled correctly
+// @Todo: make sure there's consistency between windows and macos
+// wrt window origin/viewport origin (e.g. GetMousePosition for a window)
+
 #import "Basic";
 #import "Objective_C";
 #import "Objective_C/AppKit";
@@ -41,6 +45,10 @@ g_selector : struct
     locationInWindow : Selector;
     mouseLocation : Selector;
     screens : Selector;
+    performMiniaturize_ : Selector;
+    miniaturize_ : Selector;
+    deminiaturize_ : Selector;
+    isMiniaturized : Selector;
 };
 
 g_all_windows : [..]*Window;
@@ -527,34 +535,68 @@ SetViewportSize :: inline (window : *Window, width : s32, height : s32) #no_cont
 
 GetFocusedWindow :: () -> *Window #must, non_fenetres_window_focused : bool #no_context
 {
+    ctx : Context;
+    push_context, defer_pop ctx;
+
+    ns_window := NSApp.keyWindow (NSApp);
+    if !ns_window
+        return null, false;
+
+    window := GetWindowFromPlatformHandle (ns_window);
+
+    return window, window == null;
 }
 
 SetFocusedWindow :: inline (window : *Window) #no_context
 {
+    ctx : Context;
+    push_context, defer_pop ctx;
+
+    window.makeKeyAndOrderFront (window, null);
 }
 
 IsFocused :: inline (window : *Window) -> bool #must #no_context
 {
+    return GetFocusedWindow () == window;
 }
 
+// There is no maximized state on MacOS
 IsMaximized :: inline (window : *Window) -> bool #must #no_context
 {
+    return false;
 }
 
 IsMinimized :: inline (window : *Window) -> bool #must #no_context
 {
+    return xx objc_msgSend_typed (window.handle, g_selector.isMiniaturized);
 }
 
+// There is no maximized state on MacOS, so this just sets the window to 0,0 spanning the full screen
 Maximize :: inline (window : *Window) #no_context
 {
+    ctx : Context;
+    push_context, defer_pop ctx;
+
+    screen := GetWindowScreen (window);
+    screen_rect := screen.frame (screen);
+    SetWindowPosition (window, 0, 0);
+    SetWindowSize (window, xx screen_rect.size.width, xx screen_rect.size.height);
 }
 
 Restore :: inline (window : *Window) #no_context
 {
+    func : (*void, Selector, id) -> void #c_call;
+    func = xx objc_msgSend;
+
+    func (window.handle, g_selector.deminiaturize_, null);
 }
 
 Minimize :: inline (window : *Window) #no_context
 {
+    func : (*void, Selector, id) -> void #c_call;
+    func = xx objc_msgSend;
+
+    func (window.handle, g_selector.miniaturize_, null);
 }
 
 SetWindowVisibility :: inline (window : *Window, visible : bool) #no_context
@@ -567,6 +609,27 @@ ShowAndFocusWindow :: inline (window : *Window) #no_context
 
 GetMousePosition :: inline () -> x : s32, y : s32 #no_context
 {
+    ctx : Context;
+    push_context, defer_pop ctx;
+
+    window := NSApp.keyWindow (NSApp);
+    if !window
+        return 0, 0;
+
+    screen := GetWindowScreen (window);
+    screen_rect := screen.frame (screen);
+    window_rect := window.frame (window);
+    window_rect.origin.y = screen_rect.size.height - window_rect.origin.y;
+    window_rect.origin.y -= window_rect.size.height;
+    view := window.contentView (window);
+    view_rect := view.frame (view);
+
+    point := window.mouseLocationOutsideOfEventStream (window);
+    point.y = window_rect.size.height - point.y;
+    point.x += window_rect.origin.x;
+    point.y += window_rect.origin.y;
+
+    return xx point.x, xx point.y;
 }
 
 SetMousePosition :: inline (x : s32, y : s32) #no_context
@@ -575,18 +638,28 @@ SetMousePosition :: inline (x : s32, y : s32) #no_context
 
 ScreenToWindowPosition :: inline (window : *Window, x : s32, y : s32) -> x : s32, y : s32 #no_context
 {
+    window_x, window_y := GetViewportPosition (window);
+
+    return x - window_x, y - window_y;
 }
 
 WindowToScreenPosition :: inline (window : *Window, x : s32, y : s32) -> x : s32, y : s32 #no_context
 {
+    window_x, window_y := GetViewportPosition (window);
+
+    return x + window_x, y + window_y;
 }
 
 GetMousePosition :: inline (window : *Window) -> x : s32, y : s32 #no_context
 {
-    x, y := GetMousePosition ();
-    x, y = ScreenToWindowPosition (window, x, y);
+    ctx : Context;
+    push_context, defer_pop ctx;
 
-    return x, y;
+    _, height := GetViewportSize (window);
+    point := window.mouseLocationOutsideOfEventStream (window);
+    point.y = height - point.y;
+
+    return xx point.x, xx point.y;
 }
 
 SetMousePosition :: inline (window : *Window, x : s32, y : s32) #no_context
