@@ -42,6 +42,7 @@ g_selector : struct
     clickCount : Selector;
     scrollingDeltaX : Selector;
     scrollingDeltaY : Selector;
+    hasPreciseScrollingDeltas : Selector;
     locationInWindow : Selector;
     mouseLocation : Selector;
     screens : Selector;
@@ -439,6 +440,16 @@ SetWindowTitle :: inline (window : *Window, title : string)
     window.setTitle (window, title);
 }
 
+GetWindowScaleFactor :: inline (window : *Window) -> float #must #no_context
+{
+    ctx : Context;
+    push_context, defer_pop ctx;
+
+    view := window.contentView (window);
+
+    return xx view.backingScaleFactor (view);
+}
+
 GetWindowPosition :: inline (window : *Window) -> x : s32, y : s32 #no_context
 {
     ctx : Context;
@@ -523,9 +534,9 @@ GetViewportSizeInPixels :: inline (window : *Window) -> px_width : s32, px_heigh
     ctx : Context;
     push_context, defer_pop ctx;
 
-    screen := GetWindowScreen (window);
+    view := window.contentView (window);
     width, height := GetViewportSize (window);
-    scale := screen.backingScaleFactor (screen);
+    scale := view.backingScaleFactor (view);
 
     return xx (width * scale), xx (height * scale);
 }
@@ -690,8 +701,8 @@ PollMessages :: () -> []Message
         locationInWindow = xx objc_msgSend;
 
         position := locationInWindow (event, g_selector.locationInWindow);
-        _, window_height := GetWindowSize (window);
-        position.y = window_height - position.y;
+        _, viewport_height := GetViewportSize (window);
+        position.y = viewport_height - position.y;
 
         return xx position.x, xx position.y;
     }
@@ -855,6 +866,9 @@ PollMessages :: () -> []Message
 
             NSApp.sendEvent (NSApp, event);
 
+        case NSEventTypeLeftMouseDragged; #through;
+        case NSEventTypeRightMouseDragged; #through;
+        case NSEventTypeOtherMouseDragged; #through;
         case NSEventTypeMouseMoved;
             msg : Message;
             msg.window = window;
@@ -871,8 +885,12 @@ PollMessages :: () -> []Message
             NSApp.sendEvent (NSApp, event);
 
         case NSEventTypeScrollWheel;
-            func: (self: *void, op: Selector) -> CGFloat #c_call;
-            func = xx objc_msgSend;
+            scrollingDelta: (self: *void, op: Selector) -> CGFloat #c_call;
+            scrollingDelta = xx objc_msgSend;
+            hasPreciseScrollingDeltas: (self: *void, op: Selector) -> bool #c_call;
+            hasPreciseScrollingDeltas = xx objc_msgSend;
+
+            // precise := hasPreciseScrollingDeltas (event, g_selector.hasPreciseScrollingDeltas);
 
             msg : Message;
             msg.window = window;
