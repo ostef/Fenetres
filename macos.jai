@@ -924,13 +924,23 @@ PollMessages :: () -> []Message
             hasPreciseScrollingDeltas: (self: *void, op: Selector) -> bool #c_call;
             hasPreciseScrollingDeltas = xx objc_msgSend;
 
-            // precise := hasPreciseScrollingDeltas (event, g_selector.hasPreciseScrollingDeltas);
-
             msg : Message;
             msg.window = window;
             msg.kind = .Mouse_Wheel;
-            msg.mouse_wheel_x = xx (scrollingDelta (event, g_selector.scrollingDeltaX) / 120.0);
-            msg.mouse_wheel_y = xx (scrollingDelta (event, g_selector.scrollingDeltaY) / 120.0);
+            msg.mouse_wheel_x = xx scrollingDelta (event, g_selector.scrollingDeltaX);
+            msg.mouse_wheel_y = xx scrollingDelta (event, g_selector.scrollingDeltaY);
+
+            if hasPreciseScrollingDeltas (event, g_selector.hasPreciseScrollingDeltas)
+            {
+                msg.mouse_wheel_x /= 120;
+                msg.mouse_wheel_y /= 120;
+            }
+            else
+            {
+                msg.mouse_wheel_x /= 10;
+                msg.mouse_wheel_y /= 10;
+            }
+
             msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
             if msg.mouse_wheel_x != 0 || msg.mouse_wheel_y != 0
                 array_add (*g_message_queue, msg);
