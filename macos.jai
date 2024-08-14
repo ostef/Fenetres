@@ -50,6 +50,7 @@ g_selector : struct
     miniaturize_ : Selector;
     deminiaturize_ : Selector;
     isMiniaturized : Selector;
+    crosshairCursor : Selector;
 };
 
 g_all_windows : [..]*Window;
@@ -928,8 +929,8 @@ PollMessages :: () -> []Message
             msg : Message;
             msg.window = window;
             msg.kind = .Mouse_Wheel;
-            msg.mouse_wheel_x = xx func (event, g_selector.scrollingDeltaX);
-            msg.mouse_wheel_y = xx func (event, g_selector.scrollingDeltaY);
+            msg.mouse_wheel_x = xx (scrollingDelta (event, g_selector.scrollingDeltaX) / 120.0);
+            msg.mouse_wheel_y = xx (scrollingDelta (event, g_selector.scrollingDeltaY) / 120.0);
             msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
             if msg.mouse_wheel_x != 0 || msg.mouse_wheel_y != 0
                 array_add (*g_message_queue, msg);
@@ -962,8 +963,58 @@ PollMessages :: () -> []Message
     return g_message_queue;
 }
 
+#scope_file
+
+g_cursor_hidden : bool;
+
+#scope_export
+
 SetCursor :: inline (window : *Window, cursor : SystemCursor) #no_context
 {
+    ctx : Context;
+    push_context, defer_pop ctx;
+
+    if cursor != .None && cursor != .Count && g_cursor_hidden
+    {
+        NSCursor.unhide ();
+        g_cursor_hidden = false;
+    }
+
+    if #complete cursor ==
+    {
+    case .None;
+        if !g_cursor_hidden
+        {
+            NSCursor.hide ();
+            g_cursor_hidden = true;
+        }
+
+    case .Arrow;
+        NSCursor.set (NSCursor.arrowCursor ());
+    case .Arrow_Busy;
+    case .Busy;
+    case .Cross;
+        func: (*void, Selector) -> *NSCursor #c_call;
+        func = xx objc_msgSend;
+
+        cursor := func (class (NSCursor), g_selector.crosshairCursor);
+        NSCursor.set (cursor);
+
+    case .Hand;
+        NSCursor.set (NSCursor.pointingHandCursor ());
+    case .IBeam;
+        NSCursor.set (NSCursor.IBeamCursor ());
+    case .Size;
+    case .Size_NWSE;
+    case .Size_NESW;
+    case .Size_Horizontal;
+        NSCursor.set (NSCursor.resizeLeftRightCursor ());
+    case .Size_Vertical;
+        NSCursor.set (NSCursor.resizeUpDownCursor ());
+    case .Not_Allowed;
+        NSCursor.set (NSCursor.operationNotAllowedCursor ());
+    case .Count;
+    }
 }
 
 SetCursorConstraint :: inline (x : s32, y : s32, w : s32, h : s32) -> bool #no_context
