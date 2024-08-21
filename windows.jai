@@ -227,13 +227,6 @@ ShowErrorBox :: inline (fmt_str : string, args : ..Any)
     ShowErrorBox (null, fmt_str, ..args);
 }
 
-DisplayInfo :: struct
-{
-    is_primary : bool;
-    x, y, w, h : s32;
-    dpi : s32;
-}
-
 GetDisplays :: inline () -> []DisplayInfo #must
 {
     CountDisplayMonitors :: (
@@ -423,6 +416,12 @@ SetWindowTitle :: inline (window : *Window, title : string)
     Win32.SetWindowTextW (window.hwnd, wide_title);
 }
 
+// @Todo
+GetWindowScaleFactor :: inline (window : *Window) -> float #must #no_context
+{
+    return 1;
+}
+
 GetWindowPosition :: inline (window : *Window) -> x : s32, y : s32 #no_context
 {
     rect : Win32.RECT;
@@ -472,6 +471,14 @@ GetViewportSize :: inline (window : *Window) -> width : s32, height : s32 #no_co
     Win32.GetClientRect (window.hwnd, *rect);
 
     return rect.right - rect.left, rect.bottom - rect.top;
+}
+
+GetViewportSizeInPixels :: inline (window : *Window) -> width : s32, height : s32 #no_context
+{
+    scale := GetWindowScaleFactor (window);
+    w, h := GetViewportSize (window);
+
+    return xx (w * scale), xx (h * scale);
 }
 
 SetViewportSize :: inline (window : *Window, width : s32, height : s32) #no_context
