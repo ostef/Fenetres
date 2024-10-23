@@ -18,31 +18,31 @@ LoadGL :: () -> bool
     {
 
     // No need for a window on MacOS
-    dummy_ctx := CreateContextWithoutWindow ();
+    dummy_ctx := CreateContextWithoutWindow();
     if !dummy_ctx
         return false;
 
-    defer DestroyContext (dummy_ctx);
+    defer DestroyContext(dummy_ctx);
 
     }
     else
     {
 
-    dummy_window := CreateWindow ("Dummy Window", -1, -1, -1, -1, .Hidden);
+    dummy_window := CreateWindow("Dummy Window", -1, -1, -1, -1, .Hidden);
     if !dummy_window
         return false;
 
-    defer DestroyWindow (dummy_window);
+    defer DestroyWindow(dummy_window);
 
-    dummy_ctx := CreateContext (dummy_window, .Compatibility_Profile);
+    dummy_ctx := CreateContext(dummy_window, .Compatibility_Profile);
     if !dummy_ctx
         return false;
 
-    defer DestroyContext (dummy_ctx);
+    defer DestroyContext(dummy_ctx);
 
     }
 
-    gl_load (*gl, GetProcAddress);
+    gl_load(*gl, GetProcAddress);
 
     return true;
 }

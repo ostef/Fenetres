@@ -1,6 +1,6 @@
 // @Todo: make sure multiple screens are handled correctly
 // @Todo: make sure there's consistency between windows and macos
-// wrt window origin/viewport origin (e.g. GetMousePosition for a window)
+// wrt window origin/viewport origin(e.g. GetMousePosition for a window)
 
 #import "Basic";
 #import "Objective_C";
@@ -64,33 +64,33 @@ InitObjectiveCStuff :: ()
     if g_initialized
         return;
 
-    init_objective_c ();
-    init_app_kit ();
-    init_lightweight_rendering_view ();
-    init_objective_c_selector_struct (*g_selector);
+    init_objective_c();
+    init_app_kit();
+    init_lightweight_rendering_view();
+    init_objective_c_selector_struct(*g_selector);
 
-    RegisterObjectiveCClass (AppDelegate, NSObject);
-    RegisterObjectiveCClass (WindowDelegate, NSObject);
+    RegisterObjectiveCClass(AppDelegate, NSObject);
+    RegisterObjectiveCClass(WindowDelegate, NSObject);
 
-    NSApplication.sharedApplication ();
+    NSApplication.sharedApplication();
 
-    delegate := objc_init (objc_alloc (AppDelegate));
-    NSApp.setDelegate (NSApp, delegate);
+    delegate := objc_init(objc_alloc(AppDelegate));
+    NSApp.setDelegate(NSApp, delegate);
 
     // NSApp is a global variable representing the app instance
-    NSApp.finishLaunching (NSApp);
+    NSApp.finishLaunching(NSApp);
 
     g_initialized = true;
 }
 
 RegisterObjectiveCClass :: ($T : Type, $parent : Type)
 {
-    class := objc_create_class (T, parent);
+    class := objc_create_class(T, parent);
     #insert -> string
     {
         builder : String_Builder;
 
-        info := type_info (T);
+        info := type_info(T);
         for info.members
         {
             is_method := false;
@@ -105,17 +105,17 @@ RegisterObjectiveCClass :: ($T : Type, $parent : Type)
 
             if is_method
             {
-                print (*builder,
-                    "objc_add_instance_method (class, %.%, \"%:\");\n",
+                print(*builder,
+                    "objc_add_instance_method(class, %.%, \"%:\");\n",
                     T, it.name, it.name
                 );
             }
         }
 
-        return builder_to_string (*builder);
+        return builder_to_string(*builder);
     }
 
-    objc_finalize_class (class);
+    objc_finalize_class(class);
 }
 
 AppDelegate :: struct
@@ -145,9 +145,9 @@ AppDelegate :: struct
 
     applicationDidFinishLaunching :: (using self : *AppDelegate, sel : Selector, app : *NSApplication) #c_call
     {
-        NSApp.setActivationPolicy (NSApp, NSApplicationActivationPolicyRegular);
-        NSApp.activateIgnoringOtherApps (NSApp, YES);
-        NSApp.stop (NSApp, null);
+        NSApp.setActivationPolicy(NSApp, NSApplicationActivationPolicyRegular);
+        NSApp.activateIgnoringOtherApps(NSApp, YES);
+        NSApp.stop(NSApp, null);
     }
     @ObjectiveCMethod
 }
@@ -161,14 +161,14 @@ WindowDelegate :: struct
         ctx : Context;
         push_context, defer_pop ctx;
 
-        ns_window := cast (*NSWindow) notification.object (notification);
-        window := GetWindowFromPlatformHandle (ns_window);
+        ns_window := cast(*NSWindow) notification.object(notification);
+        window := GetWindowFromPlatformHandle(ns_window);
         if window
         {
             msg : Message;
             msg.kind = .Window_Closed;
             msg.window = window;
-            array_add (*g_non_polled_messages, msg);
+            array_add(*g_non_polled_messages, msg);
         }
     }
     @ObjectiveCMethod
@@ -178,16 +178,16 @@ WindowDelegate :: struct
         ctx : Context;
         push_context, defer_pop ctx;
 
-        ns_window := cast (*NSWindow) notification.object (notification);
-        window := GetWindowFromPlatformHandle (ns_window);
+        ns_window := cast(*NSWindow) notification.object(notification);
+        window := GetWindowFromPlatformHandle(ns_window);
         if window
         {
             msg : Message;
             msg.kind = .Window_Resized;
             msg.window = window;
-            msg.window_w, msg.window_h = GetWindowSize (window);
-            msg.viewport_w, msg.viewport_h = GetViewportSize (window);
-            array_add (*g_non_polled_messages, msg);
+            msg.window_w, msg.window_h = GetWindowSize(window);
+            msg.viewport_w, msg.viewport_h = GetViewportSize(window);
+            array_add(*g_non_polled_messages, msg);
         }
     }
     @ObjectiveCMethod
@@ -197,15 +197,15 @@ WindowDelegate :: struct
         ctx : Context;
         push_context, defer_pop ctx;
 
-        ns_window := cast (*NSWindow) notification.object (notification);
-        window := GetWindowFromPlatformHandle (ns_window);
+        ns_window := cast(*NSWindow) notification.object(notification);
+        window := GetWindowFromPlatformHandle(ns_window);
         if window
         {
             msg : Message;
             msg.kind = .Window_Moved;
             msg.window = window;
-            msg.window_x, msg.window_y = GetWindowPosition (window);
-            array_add (*g_non_polled_messages, msg);
+            msg.window_x, msg.window_y = GetWindowPosition(window);
+            array_add(*g_non_polled_messages, msg);
         }
     }
     @ObjectiveCMethod
@@ -215,14 +215,14 @@ WindowDelegate :: struct
         ctx : Context;
         push_context, defer_pop ctx;
 
-        ns_window := cast (*NSWindow) notification.object (notification);
-        window := GetWindowFromPlatformHandle (ns_window);
+        ns_window := cast(*NSWindow) notification.object(notification);
+        window := GetWindowFromPlatformHandle(ns_window);
         if window
         {
             msg : Message;
             msg.kind = .Window_Minimized;
             msg.window = window;
-            array_add (*g_non_polled_messages, msg);
+            array_add(*g_non_polled_messages, msg);
         }
     }
     @ObjectiveCMethod
@@ -234,19 +234,19 @@ WindowDelegate :: struct
         ctx : Context;
         push_context, defer_pop ctx;
 
-        ns_window := cast (*NSWindow) notification.object (notification);
-        window := GetWindowFromPlatformHandle (ns_window);
+        ns_window := cast(*NSWindow) notification.object(notification);
+        window := GetWindowFromPlatformHandle(ns_window);
         if window
         {
             msg : Message;
             msg.kind = .Window_Maximized;
             msg.window = window;
-            array_add (*g_non_polled_messages, msg);
+            array_add(*g_non_polled_messages, msg);
 
             msg.kind = .Window_Resized;
-            msg.window_w, msg.window_h = GetWindowSize (window);
-            msg.viewport_w, msg.viewport_h = GetViewportSize (window);
-            array_add (*g_non_polled_messages, msg);
+            msg.window_w, msg.window_h = GetWindowSize(window);
+            msg.viewport_w, msg.viewport_h = GetViewportSize(window);
+            array_add(*g_non_polled_messages, msg);
         }
     }
     @ObjectiveCMethod
@@ -258,14 +258,14 @@ WindowDelegate :: struct
         ctx : Context;
         push_context, defer_pop ctx;
 
-        ns_window := cast (*NSWindow) notification.object (notification);
-        window := GetWindowFromPlatformHandle (ns_window);
+        ns_window := cast(*NSWindow) notification.object(notification);
+        window := GetWindowFromPlatformHandle(ns_window);
         if window
         {
             msg : Message;
             msg.kind = .Window_Received_Focus;
             msg.window = window;
-            array_add (*g_non_polled_messages, msg);
+            array_add(*g_non_polled_messages, msg);
         }
     }
     @ObjectiveCMethod
@@ -275,14 +275,14 @@ WindowDelegate :: struct
         ctx : Context;
         push_context, defer_pop ctx;
 
-        ns_window := cast (*NSWindow) notification.object (notification);
-        window := GetWindowFromPlatformHandle (ns_window);
+        ns_window := cast(*NSWindow) notification.object(notification);
+        window := GetWindowFromPlatformHandle(ns_window);
         if window
         {
             msg : Message;
             msg.kind = .Window_Lost_Focus;
             msg.window = window;
-            array_add (*g_non_polled_messages, msg);
+            array_add(*g_non_polled_messages, msg);
         }
     }
     @ObjectiveCMethod
@@ -292,23 +292,23 @@ WindowDelegate :: struct
 
 GetDisplays :: inline () -> []DisplayInfo #must
 {
-    InitObjectiveCStuff ();
+    InitObjectiveCStuff();
 
-    func : (*void, Selector) -> *NSArray (*NSScreen) #c_call;
+    func : (*void, Selector) -> *NSArray(*NSScreen) #c_call;
     func = xx objc_msgSend;
 
-    screens := func (class (NSScreen), g_selector.screens);
-    defer release (screens);
+    screens := func(class(NSScreen), g_selector.screens);
+    defer release(screens);
 
-    count := screens.count (screens);
+    count := screens.count(screens);
     if count == 0
         return .[];
 
-    result := NewArray (xx count, DisplayInfo);
+    result := NewArray(xx count, DisplayInfo);
     for i : 0..count - 1
     {
-        screen := screens.objectAtIndex (screens, i);
-        frame := screen.frame (screen);
+        screen := screens.objectAtIndex(screens, i);
+        frame := screen.frame(screen);
 
         display := *result[i];
         display.is_primary = i == 0;
@@ -316,7 +316,7 @@ GetDisplays :: inline () -> []DisplayInfo #must
         display.y = xx frame.origin.y;
         display.w = xx frame.size.width;
         display.h = xx frame.size.height;
-        display.dpi = xx screen.backingScaleFactor (screen);
+        display.dpi = xx screen.backingScaleFactor(screen);
     }
 
     return result;
@@ -331,9 +331,9 @@ CreateWindow :: (
     extra : CreateWindowExtraParams = .{}
 ) -> *Window #must
 {
-    InitObjectiveCStuff ();
+    InitObjectiveCStuff();
 
-    target_screen := NSScreen.mainScreen ();
+    target_screen := NSScreen.mainScreen();
 
     target_frame : NSRect;
     // We set the position afterwards, because we need to know some info
@@ -344,42 +344,42 @@ CreateWindow :: (
     flags := NSWindowStyleMaskTitled | NSWindowStyleMaskResizable
         | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable;
 
-    window := objc_alloc (NSWindow);
-    window = window.initWithContentRect (window, target_frame, flags, NSBackingStoreBuffered, NO, target_screen);
+    window := objc_alloc(NSWindow);
+    window = window.initWithContentRect(window, target_frame, flags, NSBackingStoreBuffered, NO, target_screen);
     if !window
     {
-        log_error ("Could not create window");
+        log_error("Could not create window");
         return null;
     }
 
-    autorelease (window);
+    autorelease(window);
 
-    delegate := objc_init (objc_alloc (WindowDelegate));
-    window.setDelegate (window, delegate);
+    delegate := objc_init(objc_alloc(WindowDelegate));
+    window.setDelegate(window, delegate);
 
-    window.setReleasedWhenClosed (window, NO);
-    window.setTitle (window, title);
+    window.setReleasedWhenClosed(window, NO);
+    window.setTitle(window, title);
 
     if x == Window_Default_Pos || y == Window_Default_Pos
     {
-        window.center (window);
+        window.center(window);
     }
     else
     {
         point := NSPoint.{
             xx x,
-            xx (y + GetWindowTitleBarHeight (window) + height)
+            xx (y + GetWindowTitleBarHeight(window) + height)
         };
-        point = InvertY (target_screen, point);
-        window.setFrameOrigin (window, point);
+        point = InvertY(target_screen, point);
+        window.setFrameOrigin(window, point);
     }
 
-    window.setCollectionBehavior (window, NSWindowCollectionBehaviorFullScreenPrimary | NSWindowCollectionBehaviorManaged);
-    window.makeKeyAndOrderFront (window, null);
+    window.setCollectionBehavior(window, NSWindowCollectionBehaviorFullScreenPrimary | NSWindowCollectionBehaviorManaged);
+    window.makeKeyAndOrderFront(window, null);
 
-    result := New (Window);
+    result := New(Window);
     result.handle = window;
-    array_add (*g_all_windows, result);
+    array_add(*g_all_windows, result);
 
     return result;
 }
@@ -388,21 +388,21 @@ CreateWindow :: (
 
 GetWindowScreen :: inline (window : *NSWindow) -> *NSScreen
 {
-    return cast (*NSScreen) objc_msgSend_typed (window, g_selector.screen);
+    return cast(*NSScreen) objc_msgSend_typed(window, g_selector.screen);
 }
 
 GetWindowTitleBarHeight :: inline (window : *NSWindow) -> s32 #must
 {
-    rect := window.frame (window);
-    view := window.contentView (window);
-    view_rect := view.frame (view);
+    rect := window.frame(window);
+    view := window.contentView(window);
+    view_rect := view.frame(view);
 
     return xx (rect.size.height - view_rect.size.height);
 }
 
 InvertY :: inline (screen : *NSScreen, point : NSPoint) -> NSPoint #must
 {
-    screen_rect := screen.frame (screen);
+    screen_rect := screen.frame(screen);
 
     return .{
         point.x,
@@ -414,31 +414,31 @@ InvertY :: inline (screen : *NSScreen, point : NSPoint) -> NSPoint #must
 
 DestroyWindow :: inline (window : *Window)
 {
-    release (window.handle);
-    free (window);
+    release(window.handle);
+    free(window);
 }
 
 CloseWindow :: inline (window : *Window) #no_context
 {
-    window.close (window);
+    window.close(window);
 }
 
 GetWindowTitle :: inline (window : *Window) -> string #must
 {
-    ns_string := cast (*NSString) objc_msgSend_typed (window.handle, g_selector.title);
-    defer release (ns_string);
+    ns_string := cast(*NSString) objc_msgSend_typed(window.handle, g_selector.title);
+    defer release(ns_string);
 
     result := string.{
-        xx ns_string.length (ns_string),
-        ns_string.UTF8String (ns_string)
+        xx ns_string.length(ns_string),
+        ns_string.UTF8String(ns_string)
     };
 
-    return copy_string (result);
+    return copy_string(result);
 }
 
 SetWindowTitle :: inline (window : *Window, title : string)
 {
-    window.setTitle (window, title);
+    window.setTitle(window, title);
 }
 
 GetWindowScaleFactor :: inline (window : *Window) -> float #must #no_context
@@ -446,9 +446,9 @@ GetWindowScaleFactor :: inline (window : *Window) -> float #must #no_context
     ctx : Context;
     push_context, defer_pop ctx;
 
-    view := window.contentView (window);
+    view := window.contentView(window);
 
-    return xx view.backingScaleFactor (view);
+    return xx view.backingScaleFactor(view);
 }
 
 GetWindowPosition :: inline (window : *Window) -> x : s32, y : s32 #no_context
@@ -456,8 +456,8 @@ GetWindowPosition :: inline (window : *Window) -> x : s32, y : s32 #no_context
     ctx : Context;
     push_context ctx
     {
-        rect := window.frame (window);
-        position := InvertY (GetWindowScreen (window), rect.origin);
+        rect := window.frame(window);
+        position := InvertY(GetWindowScreen(window), rect.origin);
 
         return xx position.x, xx (position.y - rect.size.height);
     }
@@ -468,10 +468,10 @@ SetWindowPosition :: inline (window : *Window, x : s32, y : s32) #no_context
     ctx : Context;
     push_context ctx
     {
-        _, height := GetWindowSize (window);
-        point := InvertY (GetWindowScreen (window), .{xx x, xx y});
+        _, height := GetWindowSize(window);
+        point := InvertY(GetWindowScreen(window), .{xx x, xx y});
         point.y -= xx height;
-        window.setFrameOrigin (window, point);
+        window.setFrameOrigin(window, point);
     }
 }
 
@@ -480,7 +480,7 @@ GetWindowSize :: inline (window : *Window) -> width : s32, height : s32 #no_cont
     ctx : Context;
     push_context ctx
     {
-        rect := window.frame (window);
+        rect := window.frame(window);
 
         return xx rect.size.width, xx rect.size.height;
     }
@@ -491,10 +491,10 @@ SetWindowSize :: inline (window : *Window, width : s32, height : s32) #no_contex
     ctx : Context;
     push_context ctx
     {
-        rect := window.frame (window);
+        rect := window.frame(window);
         rect.size.width = xx width;
         rect.size.height = xx height;
-        window.setFrame (window, rect, NO);
+        window.setFrame(window, rect, NO);
     }
 }
 
@@ -503,9 +503,9 @@ GetViewportPosition :: inline (window : *Window) -> width : s32, height : s32 #n
     ctx : Context;
     push_context, defer_pop ctx;
 
-    x, y := GetWindowPosition (window);
+    x, y := GetWindowPosition(window);
 
-    return x, y + GetWindowTitleBarHeight (window);
+    return x, y + GetWindowTitleBarHeight(window);
 }
 
 SetViewportPosition :: inline (window : *Window, x : s32, y : s32) #no_context
@@ -513,10 +513,10 @@ SetViewportPosition :: inline (window : *Window, x : s32, y : s32) #no_context
     ctx : Context;
     push_context, defer_pop ctx;
 
-    _, height := GetViewportSize (window);
-    point := InvertY (GetWindowScreen (window), .{xx x, xx y});
+    _, height := GetViewportSize(window);
+    point := InvertY(GetWindowScreen(window), .{xx x, xx y});
     point.y -= xx height;
-    window.setFrameOrigin (window, point);
+    window.setFrameOrigin(window, point);
 }
 
 GetViewportSize :: inline (window : *Window) -> width : s32, height : s32 #no_context
@@ -524,8 +524,8 @@ GetViewportSize :: inline (window : *Window) -> width : s32, height : s32 #no_co
     ctx : Context;
     push_context, defer_pop ctx;
 
-    view := window.contentView (window);
-    rect := view.frame (view);
+    view := window.contentView(window);
+    rect := view.frame(view);
 
     return xx rect.size.width, xx rect.size.height;
 }
@@ -535,9 +535,9 @@ GetViewportSizeInPixels :: inline (window : *Window) -> px_width : s32, px_heigh
     ctx : Context;
     push_context, defer_pop ctx;
 
-    view := window.contentView (window);
-    width, height := GetViewportSize (window);
-    scale := view.backingScaleFactor (view);
+    view := window.contentView(window);
+    width, height := GetViewportSize(window);
+    scale := view.backingScaleFactor(view);
 
     return xx (width * scale), xx (height * scale);
 }
@@ -547,10 +547,10 @@ SetViewportSize :: inline (window : *Window, width : s32, height : s32) #no_cont
     ctx : Context;
     push_context, defer_pop ctx;
 
-    rect := window.frame (window);
+    rect := window.frame(window);
     rect.size.width = xx width;
-    rect.size.height = xx (height + GetWindowTitleBarHeight (window));
-    window.setFrame (window, rect, NO);
+    rect.size.height = xx (height + GetWindowTitleBarHeight(window));
+    window.setFrame(window, rect, NO);
 }
 
 GetFocusedWindow :: () -> *Window #must, non_fenetres_window_focused : bool #no_context
@@ -558,11 +558,11 @@ GetFocusedWindow :: () -> *Window #must, non_fenetres_window_focused : bool #no_
     ctx : Context;
     push_context, defer_pop ctx;
 
-    ns_window := NSApp.keyWindow (NSApp);
+    ns_window := NSApp.keyWindow(NSApp);
     if !ns_window
         return null, false;
 
-    window := GetWindowFromPlatformHandle (ns_window);
+    window := GetWindowFromPlatformHandle(ns_window);
 
     return window, window == null;
 }
@@ -572,12 +572,12 @@ SetFocusedWindow :: inline (window : *Window) #no_context
     ctx : Context;
     push_context, defer_pop ctx;
 
-    window.makeKeyAndOrderFront (window, null);
+    window.makeKeyAndOrderFront(window, null);
 }
 
 IsFocused :: inline (window : *Window) -> bool #must #no_context
 {
-    return GetFocusedWindow () == window;
+    return GetFocusedWindow() == window;
 }
 
 // There is no maximized state on MacOS
@@ -588,7 +588,7 @@ IsMaximized :: inline (window : *Window) -> bool #must #no_context
 
 IsMinimized :: inline (window : *Window) -> bool #must #no_context
 {
-    return xx objc_msgSend_typed (window.handle, g_selector.isMiniaturized);
+    return xx objc_msgSend_typed(window.handle, g_selector.isMiniaturized);
 }
 
 // There is no maximized state on MacOS, so this just sets the window to 0,0 spanning the full screen
@@ -597,10 +597,10 @@ Maximize :: inline (window : *Window) #no_context
     ctx : Context;
     push_context, defer_pop ctx;
 
-    screen := GetWindowScreen (window);
-    screen_rect := screen.frame (screen);
-    SetWindowPosition (window, 0, 0);
-    SetWindowSize (window, xx screen_rect.size.width, xx screen_rect.size.height);
+    screen := GetWindowScreen(window);
+    screen_rect := screen.frame(screen);
+    SetWindowPosition(window, 0, 0);
+    SetWindowSize(window, xx screen_rect.size.width, xx screen_rect.size.height);
 }
 
 Restore :: inline (window : *Window) #no_context
@@ -608,7 +608,7 @@ Restore :: inline (window : *Window) #no_context
     func : (*void, Selector, id) -> void #c_call;
     func = xx objc_msgSend;
 
-    func (window.handle, g_selector.deminiaturize_, null);
+    func(window.handle, g_selector.deminiaturize_, null);
 }
 
 Minimize :: inline (window : *Window) #no_context
@@ -616,7 +616,7 @@ Minimize :: inline (window : *Window) #no_context
     func : (*void, Selector, id) -> void #c_call;
     func = xx objc_msgSend;
 
-    func (window.handle, g_selector.miniaturize_, null);
+    func(window.handle, g_selector.miniaturize_, null);
 }
 
 SetWindowVisibility :: inline (window : *Window, visible : bool) #no_context
@@ -632,19 +632,19 @@ GetMousePosition :: inline () -> x : s32, y : s32 #no_context
     ctx : Context;
     push_context, defer_pop ctx;
 
-    window := NSApp.keyWindow (NSApp);
+    window := NSApp.keyWindow(NSApp);
     if !window
         return 0, 0;
 
-    screen := GetWindowScreen (window);
-    screen_rect := screen.frame (screen);
-    window_rect := window.frame (window);
+    screen := GetWindowScreen(window);
+    screen_rect := screen.frame(screen);
+    window_rect := window.frame(window);
     window_rect.origin.y = screen_rect.size.height - window_rect.origin.y;
     window_rect.origin.y -= window_rect.size.height;
-    view := window.contentView (window);
-    view_rect := view.frame (view);
+    view := window.contentView(window);
+    view_rect := view.frame(view);
 
-    point := window.mouseLocationOutsideOfEventStream (window);
+    point := window.mouseLocationOutsideOfEventStream(window);
     point.y = window_rect.size.height - point.y;
     point.x += window_rect.origin.x;
     point.y += window_rect.origin.y;
@@ -658,14 +658,14 @@ SetMousePosition :: inline (x : s32, y : s32) #no_context
 
 ScreenToWindowPosition :: inline (window : *Window, x : s32, y : s32) -> x : s32, y : s32 #no_context
 {
-    window_x, window_y := GetViewportPosition (window);
+    window_x, window_y := GetViewportPosition(window);
 
     return x - window_x, y - window_y;
 }
 
 WindowToScreenPosition :: inline (window : *Window, x : s32, y : s32) -> x : s32, y : s32 #no_context
 {
-    window_x, window_y := GetViewportPosition (window);
+    window_x, window_y := GetViewportPosition(window);
 
     return x + window_x, y + window_y;
 }
@@ -675,8 +675,8 @@ GetMousePosition :: inline (window : *Window) -> x : s32, y : s32 #no_context
     ctx : Context;
     push_context, defer_pop ctx;
 
-    _, height := GetViewportSize (window);
-    point := window.mouseLocationOutsideOfEventStream (window);
+    _, height := GetViewportSize(window);
+    point := window.mouseLocationOutsideOfEventStream(window);
     point.y = height - point.y;
 
     return xx point.x, xx point.y;
@@ -701,41 +701,41 @@ PollMessages :: () -> []Message
         locationInWindow: (self: *void, op: Selector) -> NSPoint #c_call;
         locationInWindow = xx objc_msgSend;
 
-        position := locationInWindow (event, g_selector.locationInWindow);
-        _, viewport_height := GetViewportSize (window);
+        position := locationInWindow(event, g_selector.locationInWindow);
+        _, viewport_height := GetViewportSize(window);
         position.y = viewport_height - position.y;
 
         return xx position.x, xx position.y;
     }
 
     g_message_queue.count = 0;
-    array_add (*g_message_queue, ..g_non_polled_messages);
+    array_add(*g_message_queue, ..g_non_polled_messages);
     g_non_polled_messages.count = 0;
 
-    past := NSDate.distantPast ();
+    past := NSDate.distantPast();
     while true
     {
-        event := NSApp.nextEventMatchingMask (NSApp, NSEventMaskAny, past, NSDefaultRunLoopMode, YES);
+        event := NSApp.nextEventMatchingMask(NSApp, NSEventMaskAny, past, NSDefaultRunLoopMode, YES);
         if !event
             break;
 
-        ns_window := cast (*NSWindow) objc_msgSend_typed (event, g_selector.window);
-        window := GetWindowFromPlatformHandle (ns_window);
+        ns_window := cast(*NSWindow) objc_msgSend_typed(event, g_selector.window);
+        window := GetWindowFromPlatformHandle(ns_window);
         if !window
         {
-            NSApp.sendEvent (NSApp, event);
+            NSApp.sendEvent(NSApp, event);
 
             continue;
         }
 
-        type := event.type (event);
+        type := event.type(event);
         if type ==
         {
         case NSEventTypeFlagsChanged;
             msg : Message;
             msg.window = window;
 
-            mods := event.modifierFlags (event);
+            mods := event.modifierFlags(event);
             if mods & NSEventModifierFlagShift
                 msg.mods |= .Shift;
             if mods & NSEventModifierFlagControl
@@ -753,21 +753,21 @@ PollMessages :: () -> []Message
                 {
                     msg.kind = .Key_Pressed;
                     msg.key_code = key_code;
-                    array_add (*g_message_queue, msg);
+                    array_add(*g_message_queue, msg);
                 }
                 if !(msg.mods & mod) && g_key_mod_state & mod
                 {
                     msg.kind = .Key_Released;
                     msg.key_code = key_code;
-                    array_add (*g_message_queue, msg);
+                    array_add(*g_message_queue, msg);
                 }
             }
 
-            Helper (.Shift, .Shift);
-            Helper (.Ctrl, .Ctrl);
-            Helper (.Option, .Option);
-            Helper (.Cmd, .Cmd);
-            Helper (.Caps_Lock, .Caps_Lock);
+            Helper(.Shift, .Shift);
+            Helper(.Ctrl, .Ctrl);
+            Helper(.Option, .Option);
+            Helper(.Cmd, .Cmd);
+            Helper(.Caps_Lock, .Caps_Lock);
             g_key_mod_state = msg.mods;
 
         case NSEventTypeKeyDown; #through;
@@ -776,11 +776,11 @@ PollMessages :: () -> []Message
             msg.window = window;
             msg.kind = ifx type == NSEventTypeKeyUp
                 then .Key_Released
-                else ifx event.isARepeat (event)
+                else ifx event.isARepeat(event)
                 then .Key_Repeated
                 else .Key_Pressed;
 
-            mods := event.modifierFlags (event);
+            mods := event.modifierFlags(event);
             if mods & NSEventModifierFlagShift
                 msg.mods |= .Shift;
             if mods & NSEventModifierFlagControl
@@ -792,19 +792,19 @@ PollMessages :: () -> []Message
             if mods & NSEventModifierFlagCapsLock
                 msg.mods |= .Caps_Lock;
 
-            msg.key_code = CocoaKeyCodeToKeyCode (event.keyCode (event));
-            array_add (*g_message_queue, msg);
+            msg.key_code = CocoaKeyCodeToKeyCode(event.keyCode(event));
+            array_add(*g_message_queue, msg);
 
             if msg.kind != .Key_Released
             {
-                chars := event.characters (event);
-                len := chars.length (chars);
+                chars := event.characters(event);
+                len := chars.length(chars);
                 if chars &&  len > 0
                 {
-                    utf32_nsdata := chars.dataUsingEncoding (chars, NSUTF32LittleEndianStringEncoding);
-                    defer release (utf32_nsdata);
+                    utf32_nsdata := chars.dataUsingEncoding(chars, NSUTF32LittleEndianStringEncoding);
+                    defer release(utf32_nsdata);
 
-                    utf32_data := cast (*u32) utf32_nsdata.bytes (utf32_nsdata);
+                    utf32_data := cast(*u32) utf32_nsdata.bytes(utf32_nsdata);
 
                     for i : 0..len - 1
                     {
@@ -819,17 +819,17 @@ PollMessages :: () -> []Message
                         if input_msg.codepoint == 0x7f
                             continue;
 
-                        // Skip Private Use Area U+F700 (this contains values for NS function keys)
+                        // Skip Private Use Area U+F700(this contains values for NS function keys)
                         if (input_msg.codepoint & 0xff00) == 0xf700
                             continue;
 
-                        array_add (*g_message_queue, input_msg);
+                        array_add(*g_message_queue, input_msg);
                     }
                 }
             }
 
         case NSEventTypeLeftMouseDown;
-            click_count := cast (NSInteger) objc_msgSend_typed (event, g_selector.clickCount);
+            click_count := cast(NSInteger) objc_msgSend_typed(event, g_selector.clickCount);
 
             msg : Message;
             msg.window = window;
@@ -837,13 +837,13 @@ PollMessages :: () -> []Message
                 then .Mouse_Button_Repeated
                 else .Mouse_Button_Pressed;
             msg.mouse_button = .Left;
-            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
-            array_add (*g_message_queue, msg);
+            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow(window, event);
+            array_add(*g_message_queue, msg);
 
-            NSApp.sendEvent (NSApp, event);
+            NSApp.sendEvent(NSApp, event);
 
         case NSEventTypeRightMouseDown;
-            click_count := cast (NSInteger) objc_msgSend_typed (event, g_selector.clickCount);
+            click_count := cast(NSInteger) objc_msgSend_typed(event, g_selector.clickCount);
 
             msg : Message;
             msg.window = window;
@@ -851,13 +851,13 @@ PollMessages :: () -> []Message
                 then .Mouse_Button_Repeated
                 else .Mouse_Button_Pressed;
             msg.mouse_button = .Right;
-            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
-            array_add (*g_message_queue, msg);
+            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow(window, event);
+            array_add(*g_message_queue, msg);
 
-            NSApp.sendEvent (NSApp, event);
+            NSApp.sendEvent(NSApp, event);
 
         case NSEventTypeOtherMouseDown;
-            click_count := cast (NSInteger) objc_msgSend_typed (event, g_selector.clickCount);
+            click_count := cast(NSInteger) objc_msgSend_typed(event, g_selector.clickCount);
 
             msg : Message;
             msg.window = window;
@@ -865,40 +865,40 @@ PollMessages :: () -> []Message
                 then .Mouse_Button_Repeated
                 else .Mouse_Button_Pressed;
             msg.mouse_button = .Middle;
-            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
-            array_add (*g_message_queue, msg);
+            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow(window, event);
+            array_add(*g_message_queue, msg);
 
-            NSApp.sendEvent (NSApp, event);
+            NSApp.sendEvent(NSApp, event);
 
         case NSEventTypeLeftMouseUp;
             msg : Message;
             msg.window = window;
             msg.kind = .Mouse_Button_Released;
             msg.mouse_button = .Left;
-            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
-            array_add (*g_message_queue, msg);
+            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow(window, event);
+            array_add(*g_message_queue, msg);
 
-            NSApp.sendEvent (NSApp, event);
+            NSApp.sendEvent(NSApp, event);
 
         case NSEventTypeRightMouseUp;
             msg : Message;
             msg.window = window;
             msg.kind = .Mouse_Button_Released;
             msg.mouse_button = .Right;
-            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
-            array_add (*g_message_queue, msg);
+            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow(window, event);
+            array_add(*g_message_queue, msg);
 
-            NSApp.sendEvent (NSApp, event);
+            NSApp.sendEvent(NSApp, event);
 
         case NSEventTypeOtherMouseUp;
             msg : Message;
             msg.window = window;
             msg.kind = .Mouse_Button_Released;
             msg.mouse_button = .Middle;
-            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
-            array_add (*g_message_queue, msg);
+            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow(window, event);
+            array_add(*g_message_queue, msg);
 
-            NSApp.sendEvent (NSApp, event);
+            NSApp.sendEvent(NSApp, event);
 
         case NSEventTypeLeftMouseDragged; #through;
         case NSEventTypeRightMouseDragged; #through;
@@ -907,16 +907,16 @@ PollMessages :: () -> []Message
             msg : Message;
             msg.window = window;
             msg.kind = .Mouse_Moved;
-            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
-            array_add (*g_message_queue, msg);
+            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow(window, event);
+            array_add(*g_message_queue, msg);
 
             msg.kind = .Mouse_Raw_Moved;
-            msg.mouse_delta_x = xx event.deltaX (event);
-            msg.mouse_delta_y = xx event.deltaY (event);
+            msg.mouse_delta_x = xx event.deltaX(event);
+            msg.mouse_delta_y = xx event.deltaY(event);
             if msg.mouse_delta_x != 0 || msg.mouse_delta_y != 0
-                array_add (*g_message_queue, msg);
+                array_add(*g_message_queue, msg);
 
-            NSApp.sendEvent (NSApp, event);
+            NSApp.sendEvent(NSApp, event);
 
         case NSEventTypeScrollWheel;
             scrollingDelta: (self: *void, op: Selector) -> CGFloat #c_call;
@@ -927,10 +927,10 @@ PollMessages :: () -> []Message
             msg : Message;
             msg.window = window;
             msg.kind = .Mouse_Wheel;
-            msg.mouse_wheel_x = xx scrollingDelta (event, g_selector.scrollingDeltaX);
-            msg.mouse_wheel_y = xx scrollingDelta (event, g_selector.scrollingDeltaY);
+            msg.mouse_wheel_x = xx scrollingDelta(event, g_selector.scrollingDeltaX);
+            msg.mouse_wheel_y = xx scrollingDelta(event, g_selector.scrollingDeltaY);
 
-            if hasPreciseScrollingDeltas (event, g_selector.hasPreciseScrollingDeltas)
+            if hasPreciseScrollingDeltas(event, g_selector.hasPreciseScrollingDeltas)
             {
                 msg.mouse_wheel_x /= 120;
                 msg.mouse_wheel_y /= 120;
@@ -941,34 +941,34 @@ PollMessages :: () -> []Message
                 msg.mouse_wheel_y /= 10;
             }
 
-            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow (window, event);
+            msg.mouse_x, msg.mouse_y = GetEventMousePositionInWindow(window, event);
             if msg.mouse_wheel_x != 0 || msg.mouse_wheel_y != 0
-                array_add (*g_message_queue, msg);
+                array_add(*g_message_queue, msg);
 
-            NSApp.sendEvent (NSApp, event);
+            NSApp.sendEvent(NSApp, event);
 
         case NSEventTypeMouseEntered;
             msg : Message;
             msg.window = window;
             msg.kind = .Mouse_Entered_Window;
-            array_add (*g_message_queue, msg);
+            array_add(*g_message_queue, msg);
 
-            NSApp.sendEvent (NSApp, event);
+            NSApp.sendEvent(NSApp, event);
 
         case NSEventTypeMouseExited;
             msg : Message;
             msg.window = window;
             msg.kind = .Mouse_Left_Window;
-            array_add (*g_message_queue, msg);
+            array_add(*g_message_queue, msg);
 
-            NSApp.sendEvent (NSApp, event);
+            NSApp.sendEvent(NSApp, event);
 
         case;
-            NSApp.sendEvent (NSApp, event);
+            NSApp.sendEvent(NSApp, event);
         }
     }
 
-    NSApp.updateWindows (NSApp);
+    NSApp.updateWindows(NSApp);
 
     return g_message_queue;
 }
@@ -986,7 +986,7 @@ SetCursor :: inline (window : *Window, cursor : SystemCursor) #no_context
 
     if cursor != .None && cursor != .Count && g_cursor_hidden
     {
-        NSCursor.unhide ();
+        NSCursor.unhide();
         g_cursor_hidden = false;
     }
 
@@ -995,34 +995,34 @@ SetCursor :: inline (window : *Window, cursor : SystemCursor) #no_context
     case .None;
         if !g_cursor_hidden
         {
-            NSCursor.hide ();
+            NSCursor.hide();
             g_cursor_hidden = true;
         }
 
     case .Arrow;
-        NSCursor.set (NSCursor.arrowCursor ());
+        NSCursor.set(NSCursor.arrowCursor());
     case .Arrow_Busy;
     case .Busy;
     case .Cross;
         func: (*void, Selector) -> *NSCursor #c_call;
         func = xx objc_msgSend;
 
-        cursor := func (class (NSCursor), g_selector.crosshairCursor);
-        NSCursor.set (cursor);
+        cursor := func(class(NSCursor), g_selector.crosshairCursor);
+        NSCursor.set(cursor);
 
     case .Hand;
-        NSCursor.set (NSCursor.pointingHandCursor ());
+        NSCursor.set(NSCursor.pointingHandCursor());
     case .IBeam;
-        NSCursor.set (NSCursor.IBeamCursor ());
+        NSCursor.set(NSCursor.IBeamCursor());
     case .Size;
     case .Size_NWSE;
     case .Size_NESW;
     case .Size_Horizontal;
-        NSCursor.set (NSCursor.resizeLeftRightCursor ());
+        NSCursor.set(NSCursor.resizeLeftRightCursor());
     case .Size_Vertical;
-        NSCursor.set (NSCursor.resizeUpDownCursor ());
+        NSCursor.set(NSCursor.resizeUpDownCursor());
     case .Not_Allowed;
-        NSCursor.set (NSCursor.operationNotAllowedCursor ());
+        NSCursor.set(NSCursor.operationNotAllowedCursor());
     case .Count;
     }
 }
@@ -1061,14 +1061,14 @@ CocoaKeyCodeToKeyCode :: (cocoa : u16) -> KeyCode #must
     {
         builder : String_Builder;
 
-        append (*builder, "if cocoa ==\n{\n");
+        append(*builder, "if cocoa ==\n{\n");
         for VK_To_Key_Code_Map
         {
-            print_to_builder (*builder, "case %; return .%;\n", it.vk, it.key_code);
+            print_to_builder(*builder, "case %; return .%;\n", it.vk, it.key_code);
         }
-        append (*builder, "}\n");
+        append(*builder, "}\n");
 
-        return builder_to_string (*builder);
+        return builder_to_string(*builder);
     };
 
     return .Invalid;
@@ -1080,14 +1080,14 @@ KeyCodeToCocoaKeyCode :: (key_code : KeyCode) -> u16 #must
     {
         builder : String_Builder;
 
-        append (*builder, "if key_code ==\n{\n");
+        append(*builder, "if key_code ==\n{\n");
         for VK_To_Key_Code_Map
         {
-            print_to_builder (*builder, "case .%; return %;\n", it.key_code, it.vk);
+            print_to_builder(*builder, "case .%; return %;\n", it.key_code, it.vk);
         }
-        append (*builder, "}\n");
+        append(*builder, "}\n");
 
-        return builder_to_string (*builder);
+        return builder_to_string(*builder);
     };
 
     return 0;

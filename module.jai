@@ -98,29 +98,29 @@ PrintMessage :: (msg : Message)
 {
     #import "Unicode";
 
-    window_title := GetWindowTitle (msg.window);
-    print ("Message %\n", msg.kind);
-    print ("  Window: '%'\n", window_title);
+    window_title := GetWindowTitle(msg.window);
+    print("Message %\n", msg.kind);
+    print("  Window: '%'\n", window_title);
     if #complete msg.kind == {
     case .Invalid;
     case .Key_Pressed; #through;
     case .Key_Repeated; #through;
     case .Key_Released;
-        print ("  Key: %\n", msg.key_code);
-        print ("  Mods: %\n", msg.mods);
+        print("  Key: %\n", msg.key_code);
+        print("  Mods: %\n", msg.mods);
 
     case .Text_Input;
         str_data : [4]u8;
         str := string.{4, str_data.data};
-        character_utf32_to_utf8 (msg.codepoint, *str);
-        print ("  Text: '%'\n", str);
+        character_utf32_to_utf8(msg.codepoint, *str);
+        print("  Text: '%'\n", str);
 
     case .Window_Moved;
-        print ("  Position: % %\n", msg.window_x, msg.window_y);
+        print("  Position: % %\n", msg.window_x, msg.window_y);
 
     case .Window_Resized;
-        print ("           Size: % %\n", msg.window_w, msg.window_h);
-        print ("  Viewport Size: % %\n", msg.viewport_w, msg.viewport_h);
+        print("           Size: % %\n", msg.window_w, msg.window_h);
+        print("  Viewport Size: % %\n", msg.viewport_w, msg.viewport_h);
 
     case .Window_Maximized;
     case .Window_Minimized;
@@ -132,23 +132,23 @@ PrintMessage :: (msg : Message)
     case .Display_Changed;
 
     case .Mouse_Raw_Moved;
-        print ("  Delta: % %\n", msg.mouse_delta_x, msg.mouse_delta_y);
+        print("  Delta: % %\n", msg.mouse_delta_x, msg.mouse_delta_y);
     case .Mouse_Moved;
-        print ("  Position: % %\n", msg.mouse_x, msg.mouse_y);
+        print("  Position: % %\n", msg.mouse_x, msg.mouse_y);
     case .Mouse_Wheel;
-        print ("  Wheel: % %\n", msg.mouse_wheel_x, msg.mouse_wheel_y);
+        print("  Wheel: % %\n", msg.mouse_wheel_x, msg.mouse_wheel_y);
 
     case .Mouse_Button_Pressed;
-        print ("  Mods: %\n", msg.mods);
-        print ("  Button: %\n", msg.mouse_button);
+        print("  Mods: %\n", msg.mods);
+        print("  Button: %\n", msg.mouse_button);
 
     case .Mouse_Button_Repeated;
-        print ("  Mods: %\n", msg.mods);
-        print ("  Button: %\n", msg.mouse_button);
+        print("  Mods: %\n", msg.mods);
+        print("  Button: %\n", msg.mouse_button);
 
     case .Mouse_Button_Released;
-        print ("  Mods: %\n", msg.mods);
-        print ("  Button: %\n", msg.mouse_button);
+        print("  Mods: %\n", msg.mods);
+        print("  Button: %\n", msg.mouse_button);
 
     case .Mouse_Entered_Window;
     case .Mouse_Left_Window;

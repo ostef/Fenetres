@@ -21,9 +21,9 @@ CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled
 {
     #import "GL";
 
-    hdc := Win32.GetDC (window.hwnd);
+    hdc := Win32.GetDC(window.hwnd);
     pfd : Win32.PIXELFORMATDESCRIPTOR;
-    pfd.nSize = size_of (Win32.PIXELFORMATDESCRIPTOR);
+    pfd.nSize = size_of(Win32.PIXELFORMATDESCRIPTOR);
     pfd.nVersion = 1;
     pfd.dwFlags = Win32.PFD_DRAW_TO_WINDOW | Win32.PFD_SUPPORT_OPENGL | Win32.PFD_DOUBLEBUFFER;
     pfd.iPixelType = Win32.PFD_TYPE_RGBA;
@@ -38,7 +38,7 @@ CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled
         attributes : [..]s32;
         attributes.allocator = temp;
 
-        array_add (*attributes,
+        array_add(*attributes,
             WGL_DRAW_TO_WINDOW_ARB, 1,
             WGL_SUPPORT_OPENGL_ARB, 1,
             WGL_DOUBLE_BUFFER_ARB, 1,
@@ -50,37 +50,37 @@ CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled
 
         if flags & .Multi_Sampled
         {
-            array_add (*attributes,
+            array_add(*attributes,
                 WGL_SAMPLE_BUFFERS_ARB, 1,
                 WGL_SAMPLES_ARB, 4
             );
         }
 
-        array_add (*attributes, 0, 0);
+        array_add(*attributes, 0, 0);
 
         num_formats : u32;
 
-        valid := wglChoosePixelFormatARB (hdc, attributes.data, null, 1, *pixel_format, *num_formats);
+        valid := wglChoosePixelFormatARB(hdc, attributes.data, null, 1, *pixel_format, *num_formats);
 
         if !valid || num_formats < 1
         {
-            log_error ("wglChoosePixelFormatARB failed. GL context creation flags were %", flags);
-            pixel_format = Win32.ChoosePixelFormat (hdc, *pfd);
+            log_error("wglChoosePixelFormatARB failed. GL context creation flags were %", flags);
+            pixel_format = Win32.ChoosePixelFormat(hdc, *pfd);
         }
         else
         {
-            Win32.DescribePixelFormat (hdc, pixel_format, size_of (Win32.PIXELFORMATDESCRIPTOR), *pfd);
+            Win32.DescribePixelFormat(hdc, pixel_format, size_of(Win32.PIXELFORMATDESCRIPTOR), *pfd);
         }
     }
     else
     {
         if flags & .Multi_Sampled
-            log_error ("Cannot create multi sampled GL context because wglChoosePixelFormatARB proc is not loaded. Did you forget to call LoadGL? Falling back to Win32.ChoosePixelFormat");
+            log_error("Cannot create multi sampled GL context because wglChoosePixelFormatARB proc is not loaded. Did you forget to call LoadGL? Falling back to Win32.ChoosePixelFormat");
 
-        pixel_format = Win32.ChoosePixelFormat (hdc, *pfd);
+        pixel_format = Win32.ChoosePixelFormat(hdc, *pfd);
     }
 
-    if !Win32.SetPixelFormat (hdc, pixel_format, *pfd)
+    if !Win32.SetPixelFormat(hdc, pixel_format, *pfd)
     {
         return null;
     }
@@ -93,20 +93,20 @@ CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled
 
         if major_version > 0
         {
-            array_add (*attribs, WGL_CONTEXT_MAJOR_VERSION_ARB, major_version);
-            array_add (*attribs, WGL_CONTEXT_MINOR_VERSION_ARB, minor_version);
+            array_add(*attribs, WGL_CONTEXT_MAJOR_VERSION_ARB, major_version);
+            array_add(*attribs, WGL_CONTEXT_MINOR_VERSION_ARB, minor_version);
         }
 
         if flags & .Compatibility_Profile
         {
-            array_add (*attribs,
+            array_add(*attribs,
                 WGL_CONTEXT_PROFILE_MASK_ARB,
                 WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB
             );
         }
         else
         {
-            array_add (*attribs,
+            array_add(*attribs,
                 WGL_CONTEXT_PROFILE_MASK_ARB,
                 WGL_CONTEXT_CORE_PROFILE_BIT_ARB
             );
@@ -114,69 +114,69 @@ CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled
 
         if flags & .Debug
         {
-            array_add (*attribs,
+            array_add(*attribs,
                 WGL_CONTEXT_FLAGS_ARB,
                 WGL_CONTEXT_DEBUG_BIT_ARB
             );
         }
 
-        array_add (*attribs, 0, 0);
+        array_add(*attribs, 0, 0);
 
         // @Todo: make sure the ShareContexts function still works when calling
         // wglCreateContextAttribsARB.
-        ctx = wglCreateContextAttribsARB (hdc, null, attribs.data);
+        ctx = wglCreateContextAttribsARB(hdc, null, attribs.data);
         if !ctx
         {
-            log_error ("GL context creation failed with flags % and version %.%", flags, major_version, minor_version);
+            log_error("GL context creation failed with flags % and version %.%", flags, major_version, minor_version);
         }
     }
     else
     {
         if major_version > 0 || flags & .Debug || !(flags & .Compatibility_Profile)
         {
-            log_error ("Cannot create GL context with flags % because wglCreateContextAttribsARB is not loaded. Did you forget to call LoadGL? Falling back to legacy wglCreateContext", flags);
+            log_error("Cannot create GL context with flags % because wglCreateContextAttribsARB is not loaded. Did you forget to call LoadGL? Falling back to legacy wglCreateContext", flags);
         }
 
-        ctx = Win32.wglCreateContext (hdc);
+        ctx = Win32.wglCreateContext(hdc);
     }
 
-    Win32.wglMakeCurrent (hdc, ctx);
+    Win32.wglMakeCurrent(hdc, ctx);
 
     return ctx;
 }
 
 DestroyContext :: inline (ctx : GLContext) #no_context
 {
-    Win32.wglDeleteContext (ctx);
+    Win32.wglDeleteContext(ctx);
 }
 
 MakeCurrent :: inline (window : *Window, ctx : GLContext) #no_context
 {
-    hdc := Win32.GetDC (window.hwnd);
-    Win32.wglMakeCurrent (hdc, ctx);
+    hdc := Win32.GetDC(window.hwnd);
+    Win32.wglMakeCurrent(hdc, ctx);
 }
 
 ShareContexts :: inline (first : GLContext, second : GLContext) -> bool #no_context
 {
-    return xx Win32.wglShareLists (first, second);
+    return xx Win32.wglShareLists(first, second);
 }
 
 GetCurrentContext :: inline () -> GLContext #must #no_context
 {
-    return Win32.wglGetCurrentContext ();
+    return Win32.wglGetCurrentContext();
 }
 
 GetCurrentWindow :: inline () -> *Window #must, non_fenetres_window : bool #no_context
 {
-    hdc := Win32.wglGetCurrentDC ();
+    hdc := Win32.wglGetCurrentDC();
     if !hdc
         return null, false;
 
-    hwnd := Win32.WindowFromDC (hdc);
+    hwnd := Win32.WindowFromDC(hdc);
     if !hwnd
         return null, false;
 
-    window := GetWindowFromPlatformHandle (hwnd);
+    window := GetWindowFromPlatformHandle(hwnd);
     if !window
         return null, true;
 
@@ -185,15 +185,15 @@ GetCurrentWindow :: inline () -> *Window #must, non_fenetres_window : bool #no_c
 
 SwapBuffers :: inline (window : *Window) #no_context
 {
-    Win32.SwapBuffers (Win32.GetDC (window.hwnd));
+    Win32.SwapBuffers(Win32.GetDC(window.hwnd));
 }
 
 SetSwapInterval :: inline (interval : s32) -> bool #no_context
 {
-    return xx wglSwapIntervalEXT (interval);
+    return xx wglSwapIntervalEXT(interval);
 }
 
 GetSwapInterval :: inline () -> s32 #must #no_context
 {
-    return wglGetSwapIntervalEXT ();
+    return wglGetSwapIntervalEXT();
 }
