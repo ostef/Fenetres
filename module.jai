@@ -118,7 +118,9 @@ PrintMessage :: (msg : Message)
     window_title := GetWindowTitle(msg.window ,, temp);
     print("Message %\n", msg.kind);
     print("  Window: '%'\n", window_title);
-    if #complete msg.kind == {
+
+    if #complete msg.kind ==
+    {
     case .Invalid;
     case .Key_Pressed; #through;
     case .Key_Repeated; #through;
