@@ -182,6 +182,19 @@ PollMessages :: () -> []Message
 
 HandleXEvent :: (event : X11.XEvent)
 {
+    GetKeyModsFromStateFlags :: inline (state : u32) -> KeyMods #must
+    {
+        result : KeyMods;
+        if state & X11.ShiftMask
+            result |= .Shift;
+        if state & X11.ControlMask
+            result |= .Ctrl;
+        if state & X11.Mod1Mask
+            result |= .Alt;
+
+        return result;
+    }
+
     window := GetWindowFromPlatformHandle(event.xany.window);
     if !window
         return;
@@ -223,6 +236,7 @@ HandleXEvent :: (event : X11.XEvent)
                 msg : Message;
                 msg.kind = .Key_Repeated;
                 msg.window = window;
+                msg.mods = GetKeyModsFromStateFlags(next.xkey.state);
                 msg.key_code = XKeySymToKeyCode(sym);
                 array_add(*g_message_queue, msg);
 
@@ -235,6 +249,7 @@ HandleXEvent :: (event : X11.XEvent)
         msg : Message;
         msg.kind = ifx event.type == X11.KeyPress then .Key_Pressed else .Key_Released;
         msg.window = window;
+        msg.mods = GetKeyModsFromStateFlags(event.xkey.state);
         msg.key_code = XKeySymToKeyCode(sym);
         array_add(*g_message_queue, msg);
         // print("% %\n", FormatInt.{value=sym, base=16}, FormatInt.{value=event.xkey.keycode, base=16});
@@ -252,6 +267,7 @@ HandleXEvent :: (event : X11.XEvent)
             msg.window = window;
             msg.mouse_wheel_x = ifx button == 7 then -1.0 else ifx button == 6 then 1.0;
             msg.mouse_wheel_y = ifx button == 5 then -1.0 else ifx button == 4 then 1.0;
+            msg.mods = GetKeyModsFromStateFlags(event.xbutton.state);
             //msg.mouse_wheel_x /= 120.0;
             //msg.mouse_wheel_y /= 120.0;
             array_add(*g_message_queue, msg);
@@ -262,6 +278,7 @@ HandleXEvent :: (event : X11.XEvent)
         msg : Message;
         msg.kind = ifx event.type == X11.ButtonPress then .Mouse_Button_Pressed else .Mouse_Button_Released;
         msg.window = window;
+        msg.mods = GetKeyModsFromStateFlags(event.xbutton.state);
 
         if button ==
         {
