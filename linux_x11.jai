@@ -11,6 +11,9 @@ Window :: struct
 #scope_file
 
 g_display : *X11.Display;
+g_wm_delete_window : X11.Atom;
+g_wm_protocols : X11.Atom;
+
 g_initialized : bool;
 g_error_buffer : [10000]u8;
 g_message_queue : [..]Message;
@@ -37,6 +40,9 @@ Initialize :: ()
 
     g_display = X11.XOpenDisplay(null);
     assert(g_display != null);
+
+    g_wm_delete_window = X11.XInternAtom(g_display, "WM_DELETE_WINDOW", 1);
+    g_wm_protocols     = X11.XInternAtom(g_display, "WM_PROTOCOLS", 1);
 }
 
 #scope_export
@@ -108,11 +114,15 @@ CreateWindow :: (
     }
 
     event_mask : s32;
-    event_mask |= X11.ExposureMask;
+    event_mask |= X11.ExposureMask | X11.ResizeRedirectMask;
+    event_mask |= X11.StructureNotifyMask;
     event_mask |= X11.KeyPressMask | X11.KeyReleaseMask;
     event_mask |= X11.ButtonPressMask | X11.ButtonReleaseMask;
     event_mask |= X11.EnterWindowMask | X11.LeaveWindowMask;
     X11.XSelectInput(d, handle, event_mask);
+
+    X11.XSetWMProtocols(d, handle, *g_wm_delete_window, 1);
+
     X11.XMapWindow(d, handle);
 
     window := New(Window);
@@ -124,6 +134,10 @@ CreateWindow :: (
 
 DestroyWindow :: inline (window : *Window) #no_context
 {
+    // @Todo: find a way to handle DestroyNotify events when this is
+    // called at the end of the program when we stopped polling events
+    // On windows this is not a problem because this function will call our event
+    // callback directly.
     X11.XDestroyWindow(g_display, window.handle);
 }
 
@@ -170,6 +184,22 @@ HandleXEvent :: (event : X11.XEvent)
 
     if event.type ==
     {
+    case X11.ClientMessage;
+        msg_type := event.xclient.message_type;
+        if msg_type == g_wm_protocols
+        {
+            wm := cast(X11.Atom) event.xclient.data.l[0];
+            if wm == g_wm_delete_window
+            {
+                X11.XUnmapWindow(event.xany.display, window.handle);
+
+                msg : Message;
+                msg.kind = .Window_Closed;
+                msg.window = window;
+                array_add(*g_message_queue, msg);
+            }
+        }
+
     case X11.KeyPress; #through;
     case X11.KeyRelease;
         // Filter out release+press events for repeat
@@ -207,6 +237,36 @@ HandleXEvent :: (event : X11.XEvent)
 
     case X11.ButtonPress; #through;
     case X11.ButtonRelease;
+
+    case X11.EnterNotify;
+        msg : Message;
+        msg.kind = .Mouse_Entered_Window;
+        msg.window = window;
+        array_add(*g_message_queue, msg);
+
+    case X11.LeaveNotify;
+        msg : Message;
+        msg.kind = .Mouse_Left_Window;
+        msg.window = window;
+        array_add(*g_message_queue, msg);
+
+    case X11.ResizeRequest;
+        msg : Message;
+        msg.kind = .Window_Resized;
+        msg.window = window;
+        array_add(*g_message_queue, msg);
+
+    case X11.DestroyNotify;
+        for g_all_windows
+        {
+            if it == window
+            {
+                remove it;
+                break;
+            }
+        }
+
+        free(window);
     }
 }
 

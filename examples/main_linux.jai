@@ -9,11 +9,16 @@ main :: ()
 
     defer Fenetres.DestroyWindow(window);
 
-    d := X11.XOpenDisplay(null);
-    while true
+    quit := false;
+    while !quit
     {
-        e : X11.XEvent;
-        X11.XNextEvent(d, *e);
-        print("%\n", e.type);
+        msgs := Fenetres.PollMessages();
+        for msgs
+        {
+            Fenetres.PrintMessage(it);
+
+            if it.kind == .Window_Closed
+                quit = true;
+        }
     }
 }
