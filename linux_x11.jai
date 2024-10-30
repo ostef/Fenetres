@@ -120,6 +120,7 @@ CreateWindow :: (
     event_mask : s32;
     event_mask |= X11.ExposureMask;
     event_mask |= X11.StructureNotifyMask;
+    event_mask |= X11.FocusChangeMask;
     event_mask |= X11.KeyPressMask | X11.KeyReleaseMask;
     event_mask |= X11.ButtonPressMask | X11.ButtonReleaseMask;
     event_mask |= X11.EnterWindowMask | X11.LeaveWindowMask;
@@ -145,10 +146,9 @@ DestroyWindow :: inline (window : *Window) #no_context
     X11.XDestroyWindow(g_display, window.handle);
 }
 
-SetWindowTitle :: (window : *Window, title : string)
+CloseWindow :: inline (window : *Window) #no_context
 {
-    c_title := temp_c_string(title);
-    X11.XStoreName(g_display, window.handle, c_title);
+    X11.XUnmapWindow(g_display, window.handle);
 }
 
 GetWindowTitle :: (window : *Window) -> string #must
@@ -158,6 +158,18 @@ GetWindowTitle :: (window : *Window) -> string #must
     defer X11.XFree(result);
 
     return copy_string(to_string(result));
+}
+
+SetWindowTitle :: (window : *Window, title : string)
+{
+    c_title := temp_c_string(title);
+    X11.XStoreName(g_display, window.handle, c_title);
+}
+
+// @Todo
+GetWindowScaleFactor :: inline (window : *Window) -> float #must #no_context
+{
+    return 1;
 }
 
 PollMessages :: () -> []Message
@@ -244,7 +256,7 @@ HandleXEvent :: (event : X11.XEvent)
             }
         }
 
-        sym := X11.XKeycodeToKeysym(event.xany.display, xx event.xkey.keycode, 0);
+        sym := X11.XkbKeycodeToKeysym(event.xany.display, xx event.xkey.keycode, 0, 0);
 
         msg : Message;
         msg.kind = ifx event.type == X11.KeyPress then .Key_Pressed else .Key_Released;
@@ -252,7 +264,18 @@ HandleXEvent :: (event : X11.XEvent)
         msg.mods = GetKeyModsFromStateFlags(event.xkey.state);
         msg.key_code = XKeySymToKeyCode(sym);
         array_add(*g_message_queue, msg);
-        // print("% %\n", FormatInt.{value=sym, base=16}, FormatInt.{value=event.xkey.keycode, base=16});
+
+        shift := cast(u32) ifx event.xkey.state & X11.ShiftMask then 1 else 0;
+        sym = X11.XkbKeycodeToKeysym(event.xany.display, xx event.xkey.keycode, 0, shift);
+
+        if event.type == X11.KeyPress && (sym < X11.XK_BackSpace || sym > X11.XK_Hyper_R)
+        {
+            msg : Message;
+            msg.kind = .Text_Input;
+            msg.window = window;
+            msg.codepoint = xx, no_check sym;
+            array_add(*g_message_queue, msg);
+        }
 
     case X11.ButtonPress; #through;
     case X11.ButtonRelease;
@@ -323,13 +346,24 @@ HandleXEvent :: (event : X11.XEvent)
         {
             msg.kind = .Window_Resized;
             array_add(*g_message_queue, msg);
-
         }
 
         window.x = msg.window_x;
         window.y = msg.window_y;
         window.viewport_width = msg.viewport_w;
         window.viewport_height = msg.viewport_h;
+
+    case X11.FocusIn;
+        msg : Message;
+        msg.kind = .Window_Received_Focus;
+        msg.window = window;
+        array_add(*g_message_queue, msg);
+
+    case X11.FocusOut;
+        msg : Message;
+        msg.kind = .Window_Lost_Focus;
+        msg.window = window;
+        array_add(*g_message_queue, msg);
 
     case X11.DestroyNotify;
         for g_all_windows
