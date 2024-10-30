@@ -1,3 +1,5 @@
+// @Todo: rename numpad keys
+
 #if OS ==
 {
 case .WINDOWS;
@@ -113,7 +115,7 @@ PrintMessage :: (msg : Message)
 {
     #import "Unicode";
 
-    window_title := GetWindowTitle(msg.window);
+    window_title := GetWindowTitle(msg.window ,, temp);
     print("Message %\n", msg.kind);
     print("  Window: '%'\n", window_title);
     if #complete msg.kind == {
