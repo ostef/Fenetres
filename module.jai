@@ -4,8 +4,23 @@ case .WINDOWS;
     #load "windows.jai";
 case .MACOS;
     #load "macos.jai";
+case .LINUX;
+    #load "linux_x11.jai";
 case;
     #assert false "Unsupported OS";
+}
+
+g_all_windows : [..]*Window;
+
+GetWindowFromPlatformHandle :: inline (handle : PlatformHandle) -> *Window #must #no_context
+{
+    for g_all_windows
+    {
+        if GetPlatformHandle(it) == handle
+            return it;
+    }
+
+    return null;
 }
 
 DisplayInfo :: struct

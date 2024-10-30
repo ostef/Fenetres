@@ -12,7 +12,6 @@ Win32 :: #import "Win32" (
     HiDpi = true,
 );
 
-g_all_windows : [..]*Window;
 g_wndclass : Win32.WNDCLASSEXW;
 g_custom_caption_wndclass : Win32.WNDCLASSEXW;
 g_cursors : struct
@@ -183,6 +182,8 @@ InitializeWindowClassesAndCursors :: ()
 
 CaptionHitTestProc :: #type(*Window, mouse_x : s32, mouse_y : s32) -> on_caption : bool;
 
+PlatformHandle :: Win32.HWND;
+
 Window :: struct
 {
     hwnd : Win32.HWND;
@@ -193,20 +194,9 @@ Window :: struct
     cursor := SystemCursor.Arrow;
 }
 
-GetPlatformHandle :: inline (window : *Window) -> *void #must #no_context
+GetPlatformHandle :: inline (window : *Window) -> PlatformHandle #must #no_context
 {
     return window.hwnd;
-}
-
-GetWindowFromPlatformHandle :: inline (hwnd : *void) -> *Window #must #no_context
-{
-    for g_all_windows
-    {
-        if it.hwnd == hwnd
-            return it;
-    }
-
-    return null;
 }
 
 ShowErrorBox :: inline (parent : *Window, fmt_str : string, args : ..Any)
