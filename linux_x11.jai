@@ -1,3 +1,5 @@
+// @Todo: handle window width and height (= viewport size with caption and borders)
+
 #import "Basic";
 X11 :: #import "X11";
 
@@ -5,6 +7,8 @@ PlatformHandle :: X11.Window;
 
 Window :: struct
 {
+    x, y : s32;
+    viewport_width, viewport_height : s32;
     handle : X11.Window;
 }
 
@@ -114,7 +118,7 @@ CreateWindow :: (
     }
 
     event_mask : s32;
-    event_mask |= X11.ExposureMask | X11.ResizeRedirectMask;
+    event_mask |= X11.ExposureMask;
     event_mask |= X11.StructureNotifyMask;
     event_mask |= X11.KeyPressMask | X11.KeyReleaseMask;
     event_mask |= X11.ButtonPressMask | X11.ButtonReleaseMask;
@@ -237,6 +241,36 @@ HandleXEvent :: (event : X11.XEvent)
 
     case X11.ButtonPress; #through;
     case X11.ButtonRelease;
+        button := event.xbutton.button;
+        if button >= 4 && button <= 7
+        {
+            if event.type == X11.ButtonRelease
+                return;
+
+            msg : Message;
+            msg.kind = .Mouse_Wheel;
+            msg.window = window;
+            msg.mouse_wheel_x = ifx button == 7 then -1.0 else ifx button == 6 then 1.0;
+            msg.mouse_wheel_y = ifx button == 5 then -1.0 else ifx button == 4 then 1.0;
+            //msg.mouse_wheel_x /= 120.0;
+            //msg.mouse_wheel_y /= 120.0;
+            array_add(*g_message_queue, msg);
+
+            return;
+        }
+
+        msg : Message;
+        msg.kind = ifx event.type == X11.ButtonPress then .Mouse_Button_Pressed else .Mouse_Button_Released;
+        msg.window = window;
+
+        if button ==
+        {
+        case X11.Button1; msg.mouse_button = .Left;
+        case X11.Button2; msg.mouse_button = .Middle;
+        case X11.Button3; msg.mouse_button = .Right;
+        }
+
+        array_add(*g_message_queue, msg);
 
     case X11.EnterNotify;
         msg : Message;
@@ -250,11 +284,35 @@ HandleXEvent :: (event : X11.XEvent)
         msg.window = window;
         array_add(*g_message_queue, msg);
 
-    case X11.ResizeRequest;
+    case X11.ConfigureNotify;
         msg : Message;
-        msg.kind = .Window_Resized;
         msg.window = window;
-        array_add(*g_message_queue, msg);
+        msg.window_x = event.xconfigure.x;
+        msg.window_y = event.xconfigure.y;
+        msg.viewport_w = event.xconfigure.width;
+        msg.viewport_h = event.xconfigure.height;
+        msg.window_w = msg.viewport_w;
+        msg.window_h = msg.viewport_h;
+
+        if window.x != msg.window_x
+        || window.y != msg.window_y
+        {
+            msg.kind = .Window_Moved;
+            array_add(*g_message_queue, msg);
+        }
+
+        if window.viewport_width != msg.viewport_w
+        || window.viewport_height != msg.viewport_h
+        {
+            msg.kind = .Window_Resized;
+            array_add(*g_message_queue, msg);
+
+        }
+
+        window.x = msg.window_x;
+        window.y = msg.window_y;
+        window.viewport_width = msg.viewport_w;
+        window.viewport_height = msg.viewport_h;
 
     case X11.DestroyNotify;
         for g_all_windows
