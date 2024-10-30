@@ -10,10 +10,12 @@ Window :: struct
     x, y : s32;
     viewport_width, viewport_height : s32;
     handle : X11.Window;
+    last_mouse_button_release_time : [3]X11.Time; // In ms
 }
 
 #scope_file
 
+g_double_click_time_ms : u64 = 500;
 g_display : *X11.Display;
 g_wm_delete_window : X11.Atom;
 g_wm_protocols : X11.Atom;
@@ -305,9 +307,32 @@ HandleXEvent :: (event : X11.XEvent)
 
         if button ==
         {
-        case X11.Button1; msg.mouse_button = .Left;
-        case X11.Button2; msg.mouse_button = .Middle;
-        case X11.Button3; msg.mouse_button = .Right;
+        case X11.Button1;
+            msg.mouse_button = .Left;
+
+            time_since_last_release := event.xbutton.time - window.last_mouse_button_release_time[0];
+            if msg.kind == .Mouse_Button_Released
+                window.last_mouse_button_release_time[0] = event.xbutton.time;
+            else if time_since_last_release <= g_double_click_time_ms
+                msg.kind = .Mouse_Button_Repeated;
+
+        case X11.Button2;
+            msg.mouse_button = .Middle;
+
+            time_since_last_release := event.xbutton.time - window.last_mouse_button_release_time[1];
+            if msg.kind == .Mouse_Button_Released
+                window.last_mouse_button_release_time[1] = event.xbutton.time;
+            else if time_since_last_release <= g_double_click_time_ms
+                msg.kind = .Mouse_Button_Repeated;
+
+        case X11.Button3;
+            msg.mouse_button = .Right;
+
+            time_since_last_release := event.xbutton.time - window.last_mouse_button_release_time[2];
+            if msg.kind == .Mouse_Button_Released
+                window.last_mouse_button_release_time[2] = event.xbutton.time;
+            else if time_since_last_release <= g_double_click_time_ms
+                msg.kind = .Mouse_Button_Repeated;
         }
 
         array_add(*g_message_queue, msg);
