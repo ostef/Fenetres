@@ -14,6 +14,11 @@ Window :: struct
     last_mouse_button_release_time : [3]X11.Time; // In ms
 }
 
+GetOpenedXDisplay :: inline () -> *X11.Display #must #no_context
+{
+    return g_display;
+}
+
 #scope_file
 
 g_double_click_time_ms : u64 = 500;
@@ -22,7 +27,7 @@ g_wm_delete_window : X11.Atom;
 g_wm_protocols : X11.Atom;
 
 g_initialized : bool;
-g_error_buffer : [10000]u8;
+g_error_buffer : [10000]u8 = ---;
 g_message_queue : [..]Message;
 
 HandleXError :: (d : *X11.Display, event : *X11.XErrorEvent) -> s32 #c_call
