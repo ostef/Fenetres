@@ -107,7 +107,12 @@ CreateWindow :: (
         }
     }
 
-    X11.XSelectInput(d, handle, X11.ExposureMask | X11.KeyPressMask);
+    event_mask : s32;
+    event_mask |= X11.ExposureMask;
+    event_mask |= X11.KeyPressMask | X11.KeyReleaseMask;
+    event_mask |= X11.ButtonPressMask | X11.ButtonReleaseMask;
+    event_mask |= X11.EnterWindowMask | X11.LeaveWindowMask;
+    X11.XSelectInput(d, handle, event_mask);
     X11.XMapWindow(d, handle);
 
     window := New(Window);
@@ -167,13 +172,38 @@ HandleXEvent :: (event : X11.XEvent)
     {
     case X11.KeyPress; #through;
     case X11.KeyRelease;
+        // Filter out release+press events for repeat
+        if event.type == X11.KeyRelease && X11.XEventsQueued(g_display, X11.QueuedAfterReading)
+        {
+            next : X11.XEvent;
+            X11.XPeekEvent(g_display, *next);
+
+            if next.type == X11.KeyPress
+            && next.xkey.time == event.xkey.time
+            && next.xkey.keycode == event.xkey.keycode
+            {
+                X11.XNextEvent(g_display, *next);
+
+                sym := X11.XKeycodeToKeysym(next.xany.display, xx next.xkey.keycode, 0);
+
+                msg : Message;
+                msg.kind = .Key_Repeated;
+                msg.window = window;
+                msg.key_code = XKeySymToKeyCode(sym);
+                array_add(*g_message_queue, msg);
+
+                return;
+            }
+        }
+
+        sym := X11.XKeycodeToKeysym(event.xany.display, xx event.xkey.keycode, 0);
+
         msg : Message;
         msg.kind = ifx event.type == X11.KeyPress then .Key_Pressed else .Key_Released;
         msg.window = window;
-        sym := X11.XKeycodeToKeysym(event.xany.display, xx event.xkey.keycode, 0);
         msg.key_code = XKeySymToKeyCode(sym);
         array_add(*g_message_queue, msg);
-        print("% %\n", FormatInt.{value=sym, base=16}, FormatInt.{value=event.xkey.keycode, base=16});
+        // print("% %\n", FormatInt.{value=sym, base=16}, FormatInt.{value=event.xkey.keycode, base=16});
 
     case X11.ButtonPress; #through;
     case X11.ButtonRelease;
