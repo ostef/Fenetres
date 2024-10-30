@@ -1,4 +1,5 @@
 // @Todo: handle window width and height (= viewport size with caption and borders)
+// @Todo: raw mouse movement
 
 #import "Basic";
 X11 :: #import "X11";
@@ -124,6 +125,7 @@ CreateWindow :: (
     event_mask |= X11.StructureNotifyMask;
     event_mask |= X11.FocusChangeMask;
     event_mask |= X11.KeyPressMask | X11.KeyReleaseMask;
+    event_mask |= X11.PointerMotionMask;
     event_mask |= X11.ButtonPressMask | X11.ButtonReleaseMask;
     event_mask |= X11.EnterWindowMask | X11.LeaveWindowMask;
     X11.XSelectInput(d, handle, event_mask);
@@ -335,6 +337,14 @@ HandleXEvent :: (event : X11.XEvent)
                 msg.kind = .Mouse_Button_Repeated;
         }
 
+        array_add(*g_message_queue, msg);
+
+    case X11.MotionNotify;
+        msg : Message;
+        msg.kind = .Mouse_Moved;
+        msg.window = window;
+        msg.mouse_x = event.xmotion.x;
+        msg.mouse_y = event.xmotion.y;
         array_add(*g_message_queue, msg);
 
     case X11.EnterNotify;
