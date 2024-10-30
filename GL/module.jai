@@ -1,4 +1,5 @@
 #import "Fenetres";
+#import "GL";
 
 #if OS ==
 {
@@ -6,14 +7,14 @@ case .WINDOWS;
     #load "windows.jai";
 case .MACOS;
     #load "macos.jai";
+case .LINUX;
+    #load "linux.jai";
 case;
     #assert false "Unsupported OS";
 }
 
 LoadGL :: () -> bool
 {
-    #import "GL";
-
     #if OS == .MACOS
     {
 
