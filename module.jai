@@ -12,6 +12,8 @@ case;
     #assert false "Unsupported OS";
 }
 
+Window :: struct {}
+
 g_all_windows : [..]*Window;
 
 GetWindowFromPlatformHandle :: inline (handle : PlatformHandle) -> *Window #must #no_context
@@ -308,3 +310,65 @@ KeyCode :: enum u8
 
     Count;
 }
+
+// @Todo: make a function that checks if we define all of these below
+// to ensure the API is correctly implemented on all platforms
+// We probably want to add a note on each procedure that is platform
+// specific, and the set of all procedures that don't have the note
+// must match *exactly* the set of procedures below
+// Same for structs (or API structs should be defined here, and we should
+// make them opaque if they have platform specific fields)
+/*
+GetDisplays :: () -> []DisplayInfo #must;
+
+ShowErrorBox :: (parent : *Window, fmt_str : string, args : ..Any);
+ShowErrorBox :: (fmt_str : string, args : ..Any);
+
+CreateWindow :: (title : string, width : s32, height : s32, x : s32, y : s32, flags : WindowFlags = 0, parent : *Window = null) -> *Window;
+DestroyWindow :: (window : *Window) #no_context;
+PollMessages :: () -> []Message;
+
+GetPlatformHandle :: (window : *Window) -> WindowPlatformHandle #must #no_context;
+SetWindowTitle :: (window : *Window, title : string);
+GetWindowTitle :: (window : *Window) -> string #must;
+GetWindowScaleFactor :: (window : *Window) -> float #must;
+GetWindowPosition :: (window : *Window) -> x : s32, y : s32;
+SetWindowPosition :: (window : *Window, x : s32, y : s32);
+GetWindowSize :: (window : *Window) -> w : s32, h : s32;
+SetWindowSize :: (window : *Window, w : s32, h : s32);
+GetViewportPosition :: (window : *Window) -> x : s32, y : s32;
+SetViewportPosition :: (window : *Window, x : s32, y : s32);
+GetViewportSizeInPixels :: (window : *Window) -> w : s32, h : s32;
+GetViewportSize :: (window : *Window) -> w : s32, h : s32;
+SetViewportSize :: (window : *Window, w : s32, h : s32);
+GetFocusedWindow :: () -> *Window, non_fenetres_window : bool;
+SetFocusedWindow :: (window : *Window);
+IsFocused :: (window : *Window) -> bool #must;
+IsMaximized :: (window : *Window) -> bool #must;
+Maximize :: (window : *Window);
+IsMinimized :: (window : *Window) -> bool #must;
+Minimize :: (window : *Window);
+Restore :: (window : *Window);
+CloseWindow :: (window : *Window) #no_context;
+ShowWindow :: (window : *Window) #no_context;
+HideWindow :: (window : *Window) #no_context;
+FocusWindow :: (window : *Window) #no_context;
+ScreenToWindow :: (window : *Window, x : s32, y : s32) -> x : s32, y : s32;
+WindowToScreen :: (window : *Window, x : s32, y : s32) -> x : s32, y : s32;
+
+GetKeyModState :: () -> KeyMods;
+GetKeyState :: (key : KeyCode) -> KeyState;
+GetMouseButtonState :: (button : MouseButton) -> KeyState;
+GetMousePosition :: () -> x : s32, y : s32;
+SetMousePosition :: (x : s32, y : s32);
+GetMousePosition :: (window : *Window, ) -> x : s32, y : s32;
+SetMousePosition :: (window : *Window, x : s32, y : s32);
+
+SetCursor :: (window : *Window, cursor : SystemCursor);
+SetCursorConstraint :: (x : s32, y : s32, w : s32, h : s32) -> bool;
+RemoveCursorConstraint :: ();
+
+GetClipboardTextData :: () -> string;
+SetClipboardTextData :: (text : string);
+ClearClipboard :: ();
+*/
