@@ -9,3 +9,4 @@ obj/
 __pycache__/
 examples/main
 examples/main.dSYM
+examples/main_linux
