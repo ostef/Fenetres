@@ -180,6 +180,9 @@ InitializeWindowClassesAndCursors :: ()
 
 #scope_export
 
+using API_Impl :: struct
+{
+
 CaptionHitTestProc :: #type(*Window, mouse_x : s32, mouse_y : s32) -> on_caption : bool;
 
 PlatformHandle :: Win32.HWND;
@@ -639,24 +642,6 @@ PollMessages :: () -> []Message
     return g_message_queue;
 }
 
-#scope_file
-
-g_show_cursor : bool;
-
-#scope_export
-
-SetCursorVisibility :: inline (visible : bool) #no_context
-#deprecated "Use SetCursor(window, .None) instead"
-{
-    if g_show_cursor == visible
-        return;
-
-    // This function does not behave like expected: see https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showcursor
-    // "If bShow is TRUE, the display count is incremented by one. If bShow is FALSE, the display count is decremented by one."
-    Win32.ShowCursor(xx visible);
-    g_show_cursor = visible;
-}
-
 SetCursor :: inline (window : *Window, cursor : SystemCursor) #no_context
 {
     if window.cursor != cursor
@@ -804,6 +789,8 @@ ClearClipboard :: inline ()
 
     Win32.EmptyClipboard();
     Win32.CloseClipboard();
+}
+
 }
 
 #scope_file

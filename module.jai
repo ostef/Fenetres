@@ -12,8 +12,6 @@ case;
     #assert false "Unsupported OS";
 }
 
-Window :: struct {}
-
 g_all_windows : [..]*Window;
 
 GetWindowFromPlatformHandle :: inline (handle : PlatformHandle) -> *Window #must #no_context
@@ -311,6 +309,47 @@ KeyCode :: enum u8
     Count;
 }
 
+#run
+{
+    #import "Compiler";
+    #import "String";
+
+    has_error := false;
+    api := type_info(API);
+    impl := type_info(API_Impl);
+    for api_member : api.members
+    {
+        overload_name := api_member.name;
+        index := find_index_from_right(overload_name, #char "_");
+        if index != -1
+            overload_name.count = index;
+
+        member_info := (cast(**Type_Info) (api.constant_storage.data + api_member.offset_into_constant_storage)).*;
+
+        for impl_member : impl.members
+        {
+            for note : impl_member.notes
+            {
+                if note == "PlatformSpecific"
+                    continue impl_member;
+            }
+
+            if impl_member.name == overload_name
+            && impl_member.type == member_info
+            {
+                //print("Found implementation for %\n", overload_name);
+                continue api_member;
+            }
+        }
+
+        compiler_report(tprint("API coverage: % :: % is not implemented for this platform", overload_name, get_type(member_info)), mode=.ERROR_CONTINUABLE);
+        has_error = true;
+    }
+
+    if has_error
+        exit(1);
+}
+
 // @Todo: make a function that checks if we define all of these below
 // to ensure the API is correctly implemented on all platforms
 // We probably want to add a note on each procedure that is platform
@@ -318,57 +357,62 @@ KeyCode :: enum u8
 // must match *exactly* the set of procedures below
 // Same for structs (or API structs should be defined here, and we should
 // make them opaque if they have platform specific fields)
-/*
-GetDisplays :: () -> []DisplayInfo #must;
 
-ShowErrorBox :: (parent : *Window, fmt_str : string, args : ..Any);
-ShowErrorBox :: (fmt_str : string, args : ..Any);
+// This structure lists all the API functions that should be implemented on each platform
+// We then use this structure and compare it to actual implementation structure to ensure
+// the API is correctly implemented for all platforms
+API :: struct
+{
 
-CreateWindow :: (title : string, width : s32, height : s32, x : s32, y : s32, flags : WindowFlags = 0, parent : *Window = null) -> *Window;
-DestroyWindow :: (window : *Window) #no_context;
-PollMessages :: () -> []Message;
+GetDisplays :: #type () -> []DisplayInfo #must;
 
-GetPlatformHandle :: (window : *Window) -> WindowPlatformHandle #must #no_context;
-SetWindowTitle :: (window : *Window, title : string);
-GetWindowTitle :: (window : *Window) -> string #must;
-GetWindowScaleFactor :: (window : *Window) -> float #must;
-GetWindowPosition :: (window : *Window) -> x : s32, y : s32;
-SetWindowPosition :: (window : *Window, x : s32, y : s32);
-GetWindowSize :: (window : *Window) -> w : s32, h : s32;
-SetWindowSize :: (window : *Window, w : s32, h : s32);
-GetViewportPosition :: (window : *Window) -> x : s32, y : s32;
-SetViewportPosition :: (window : *Window, x : s32, y : s32);
-GetViewportSizeInPixels :: (window : *Window) -> w : s32, h : s32;
-GetViewportSize :: (window : *Window) -> w : s32, h : s32;
-SetViewportSize :: (window : *Window, w : s32, h : s32);
-GetFocusedWindow :: () -> *Window, non_fenetres_window : bool;
-SetFocusedWindow :: (window : *Window);
-IsFocused :: (window : *Window) -> bool #must;
-IsMaximized :: (window : *Window) -> bool #must;
-Maximize :: (window : *Window);
-IsMinimized :: (window : *Window) -> bool #must;
-Minimize :: (window : *Window);
-Restore :: (window : *Window);
-CloseWindow :: (window : *Window) #no_context;
-ShowWindow :: (window : *Window) #no_context;
-HideWindow :: (window : *Window) #no_context;
-FocusWindow :: (window : *Window) #no_context;
-ScreenToWindow :: (window : *Window, x : s32, y : s32) -> x : s32, y : s32;
-WindowToScreen :: (window : *Window, x : s32, y : s32) -> x : s32, y : s32;
+ShowErrorBox_1 :: #type (parent : *Window, fmt_str : string, args : ..Any);
+ShowErrorBox_2 :: #type (fmt_str : string, args : ..Any);
 
-GetKeyModState :: () -> KeyMods;
-GetKeyState :: (key : KeyCode) -> KeyState;
-GetMouseButtonState :: (button : MouseButton) -> KeyState;
-GetMousePosition :: () -> x : s32, y : s32;
-SetMousePosition :: (x : s32, y : s32);
-GetMousePosition :: (window : *Window, ) -> x : s32, y : s32;
-SetMousePosition :: (window : *Window, x : s32, y : s32);
+CreateWindow :: #type (title : string, width : s32, height : s32, x : s32, y : s32, flags : WindowFlags = 0, parent : *Window = null, extra : CreateWindowExtraParams = .{}) -> *Window;
+DestroyWindow :: #type (window : *Window) #no_context;
+PollMessages :: #type () -> []Message;
 
-SetCursor :: (window : *Window, cursor : SystemCursor);
-SetCursorConstraint :: (x : s32, y : s32, w : s32, h : s32) -> bool;
-RemoveCursorConstraint :: ();
+GetPlatformHandle :: #type (window : *Window) -> PlatformHandle #must #no_context;
+SetWindowTitle :: #type (window : *Window, title : string);
+GetWindowTitle :: #type (window : *Window) -> string #must;
+GetWindowScaleFactor :: #type (window : *Window) -> float #must #no_context;
+GetWindowPosition :: #type (window : *Window) -> x : s32, y : s32 #no_context;
+SetWindowPosition :: #type (window : *Window, x : s32, y : s32) #no_context;
+GetWindowSize :: #type (window : *Window) -> w : s32, h : s32 #no_context;
+SetWindowSize :: #type (window : *Window, w : s32, h : s32) #no_context;
+GetViewportPosition :: #type (window : *Window) -> x : s32, y : s32 #no_context;
+SetViewportPosition :: #type (window : *Window, x : s32, y : s32) #no_context;
+GetViewportSizeInPixels :: #type (window : *Window) -> w : s32, h : s32 #no_context;
+GetViewportSize :: #type (window : *Window) -> w : s32, h : s32 #no_context;
+SetViewportSize :: #type (window : *Window, w : s32, h : s32) #no_context;
+GetFocusedWindow :: #type () -> *Window, non_fenetres_window : bool #no_context;
+SetFocusedWindow :: #type (window : *Window) #no_context;
+IsFocused :: #type (window : *Window) -> bool #must #no_context;
+IsMaximized :: #type (window : *Window) -> bool #must #no_context;
+Maximize :: #type (window : *Window) #no_context;
+IsMinimized :: #type (window : *Window) -> bool #must #no_context;
+Minimize :: #type (window : *Window) #no_context;
+Restore :: #type (window : *Window) #no_context;
+SetWindowVisibility :: #type (window : *Window, visible : bool) #no_context;
+ShowAndFocusWindow :: #type (window : *Window) #no_context;
+ScreenToWindowPosition :: #type (window : *Window, x : s32, y : s32) -> x : s32, y : s32 #no_context;
+WindowToScreenPosition :: #type (window : *Window, x : s32, y : s32) -> x : s32, y : s32 #no_context;
 
-GetClipboardTextData :: () -> string;
-SetClipboardTextData :: (text : string);
-ClearClipboard :: ();
-*/
+GetKeyModState :: #type () -> KeyMods #no_context;
+//GetKeyState :: #type (key : KeyCode) -> KeyState;
+//GetMouseButtonState :: #type (button : MouseButton) -> KeyState;
+GetMousePosition_1 :: #type () -> x : s32, y : s32 #no_context;
+SetMousePosition_1 :: #type (x : s32, y : s32) #no_context;
+GetMousePosition_2 :: #type (window : *Window) -> x : s32, y : s32 #no_context;
+SetMousePosition_2 :: #type (window : *Window, x : s32, y : s32) #no_context;
+
+SetCursor :: #type (window : *Window, cursor : SystemCursor) #no_context;
+SetCursorConstraint :: #type (x : s32, y : s32, w : s32, h : s32) -> bool #no_context;
+RemoveCursorConstraint :: #type () -> bool #no_context;
+
+GetClipboardTextData :: #type () -> string;
+SetClipboardTextData :: #type (text : string);
+ClearClipboard :: #type ();
+
+}
