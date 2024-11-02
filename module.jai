@@ -1,6 +1,8 @@
 // @Todo: rename numpad keys
+// @Todo: rename GetWindowPosition/Size to GetWindowPosition/SizeWithFrame
+// and rename GetViewportPosition/Size to GetWindowPosition/Size
 
-Check_API :: false;
+Check_API :: true;
 
 #if OS ==
 {
