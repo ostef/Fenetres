@@ -29,6 +29,11 @@ GetWindowFromPlatformHandle :: inline (handle : PlatformHandle) -> *Window #must
     return null;
 }
 
+IsFocused :: inline (window : *Window) -> bool #must #no_context
+{
+    return GetFocusedWindow() == window;
+}
+
 DisplayInfo :: struct
 {
     is_primary : bool;

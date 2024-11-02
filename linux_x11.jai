@@ -6,8 +6,6 @@
 // GetFocusedWindow
 // SetFocusedWindow
 // SetMouseCapture
-// SetMousePosition
-// GetMousePosition
 // SetCursor
 // GetDisplays
 // GetClipboardTextData
@@ -15,7 +13,6 @@
 // ClearClipboard
 // SetWindowVisibility
 // ShowAndFocusWindow
-// IsFocused
 // IsMinimized
 // All Fenetres GL stuff
 
@@ -99,6 +96,7 @@ ShowErrorBox :: inline (fmt_str : string, args : ..Any)
 GetDisplays :: inline () -> []DisplayInfo #must
 {
     assert(false);
+    return .[];
 }
 
 CreateWindowExtraParams :: struct
@@ -297,6 +295,42 @@ WindowToScreenPosition :: (window : *Window, x : s32, y : s32) -> x : s32, y : s
     X11.XTranslateCoordinates(g_display, window.handle, root_window, x, y, *result_x, *result_y, *child);
 
     return result_x, result_y;
+}
+
+GetMousePosition :: () -> x : s32, y : s32 #no_context
+{
+    x, y := GetMousePosition(null);
+
+    return x, y;
+}
+
+SetMousePosition :: (x : s32, y : s32) #no_context
+{
+    SetMousePosition(null, x, y);
+}
+
+GetMousePosition :: (window : *Window) -> x : s32, y : s32 #no_context
+{
+    ctx : Context;
+    push_context, defer_pop ctx;
+
+    handle := ifx window then window.handle else X11.DefaultRootWindow(g_display);
+
+    root, child : X11.Window;
+    x_root, y_root, x_win, y_win : s32;
+    mods : u32;
+    X11.XQueryPointer(g_display, handle, *root, *child, *x_root, *y_root, *x_win, *y_win, *mods);
+
+    return x_win, y_win;
+}
+
+SetMousePosition :: (window : *Window, x : s32, y : s32) #no_context
+{
+    ctx : Context;
+    push_context, defer_pop ctx;
+
+    handle := ifx window then window.handle else X11.DefaultRootWindow(g_display);
+    X11.XWarpPointer(g_display, 0, handle, 0, 0, 0, 0, x, y);
 }
 
 }

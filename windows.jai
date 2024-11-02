@@ -504,11 +504,6 @@ SetFocusedWindow :: inline (window : *Window) #no_context
     Win32.SetFocus(window.hwnd);
 }
 
-IsFocused :: inline (window : *Window) -> bool #must #no_context
-{
-    return GetFocusedWindow() == window;
-}
-
 IsMaximized :: inline (window : *Window) -> bool #must #no_context
 {
     placement : Win32.WINDOWPLACEMENT;
