@@ -1,6 +1,24 @@
 // @Todo: handle window width and height (= viewport size with caption and borders)
 // @Todo: raw mouse movement
 
+// To implement for ImGui Fenetres backend:
+// GetViewportSizeInPixels
+// GetFocusedWindow
+// SetFocusedWindow
+// SetMouseCapture
+// SetMousePosition
+// GetMousePosition
+// SetCursor
+// GetDisplays
+// GetClipboardTextData
+// SetClipboardTextData
+// ClearClipboard
+// SetWindowVisibility
+// ShowAndFocusWindow
+// IsFocused
+// IsMinimized
+// All Fenetres GL stuff
+
 #import "Basic";
 X11 :: #import "X11";
 
@@ -237,6 +255,22 @@ SetViewportSize :: (window : *Window, w : s32, h : s32) #no_context
     change.width = w;
     change.height = h;
     X11.XConfigureWindow(g_display, window.handle, (1<<2) | (1<<3), *change);
+}
+
+GetFocusedWindow :: () -> *Window, non_fenetres_window : bool #no_context
+{
+    result : X11.Window;
+    revert_to : s32;
+    X11.XGetInputFocus(g_display, *result, *revert_to);
+
+    window := GetWindowFromPlatformHandle(result);
+
+    return window, window == null && result != 0;
+}
+
+SetFocusedWindow :: (window : *Window) #no_context
+{
+    X11.XSetInputFocus(g_display, window.handle, 0, 0);
 }
 
 ScreenToWindowPosition :: (window : *Window, x : s32, y : s32) -> x : s32, y : s32 #no_context

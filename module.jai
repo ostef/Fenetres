@@ -2,7 +2,7 @@
 // @Todo: rename GetWindowPosition/Size to GetWindowPosition/SizeWithFrame
 // and rename GetViewportPosition/Size to GetWindowPosition/Size
 
-Check_API :: true;
+Check_API :: false;
 
 #if OS ==
 {
