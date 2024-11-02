@@ -163,6 +163,24 @@ CloseWindow :: inline (window : *Window) #no_context
     X11.XUnmapWindow(g_display, window.handle);
 }
 
+PollMessages :: () -> []Message
+{
+    g_message_queue.count = 0;
+
+    X11.XLockDisplay(g_display);
+    defer X11.XUnlockDisplay(g_display);
+
+    event : X11.XEvent;
+    while X11.XPending(g_display)
+    {
+        X11.XNextEvent(g_display, *event);
+
+        HandleXEvent(event);
+    }
+
+    return g_message_queue;
+}
+
 GetWindowTitle :: (window : *Window) -> string #must
 {
     result : *u8;
@@ -184,22 +202,67 @@ GetWindowScaleFactor :: inline (window : *Window) -> float #must #no_context
     return 1;
 }
 
-PollMessages :: () -> []Message
+GetViewportPosition :: inline (window : *Window) -> x : s32, y : s32 #no_context
 {
-    g_message_queue.count = 0;
+    ctx : Context;
+    push_context, defer_pop ctx;
 
-    X11.XLockDisplay(g_display);
-    defer X11.XUnlockDisplay(g_display);
+    root_window := X11.DefaultRootWindow(g_display);
+    child : X11.Window;
+    x, y : s32;
+    X11.XTranslateCoordinates(g_display, window.handle, root_window, 0, 0, *x, *y, *child);
 
-    event : X11.XEvent;
-    while X11.XPending(g_display)
-    {
-        X11.XNextEvent(g_display, *event);
+    return x, y;
+}
 
-        HandleXEvent(event);
-    }
+SetViewportPosition :: (window : *Window, x : s32, y : s32) #no_context
+{
+    change : X11.XWindowChanges;
+    change.x = x;
+    change.y = y;
+    X11.XConfigureWindow(g_display, window.handle, (1<<0) | (1<<1), *change);
+}
 
-    return g_message_queue;
+GetViewportSize :: (window : *Window) -> w : s32, h : s32 #no_context
+{
+    attr : X11.XWindowAttributes;
+    X11.XGetWindowAttributes(g_display, window.handle, *attr);
+
+    return attr.width, attr.height;
+}
+
+SetViewportSize :: (window : *Window, w : s32, h : s32) #no_context
+{
+    change : X11.XWindowChanges;
+    change.width = w;
+    change.height = h;
+    X11.XConfigureWindow(g_display, window.handle, (1<<2) | (1<<3), *change);
+}
+
+ScreenToWindowPosition :: (window : *Window, x : s32, y : s32) -> x : s32, y : s32 #no_context
+{
+    ctx : Context;
+    push_context, defer_pop ctx;
+
+    root_window := X11.DefaultRootWindow(g_display);
+    child : X11.Window;
+    result_x, result_y : s32;
+    X11.XTranslateCoordinates(g_display, root_window, window.handle, x, y, *result_x, *result_y, *child);
+
+    return result_x, result_y;
+}
+
+WindowToScreenPosition :: (window : *Window, x : s32, y : s32) -> x : s32, y : s32 #no_context
+{
+    ctx : Context;
+    push_context, defer_pop ctx;
+
+    root_window := X11.DefaultRootWindow(g_display);
+    child : X11.Window;
+    result_x, result_y : s32;
+    X11.XTranslateCoordinates(g_display, window.handle, root_window, x, y, *result_x, *result_y, *child);
+
+    return result_x, result_y;
 }
 
 }
