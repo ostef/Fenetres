@@ -1,5 +1,7 @@
 // @Todo: rename numpad keys
 
+Check_API :: false;
+
 #if OS ==
 {
 case .WINDOWS;
@@ -309,45 +311,48 @@ KeyCode :: enum u8
     Count;
 }
 
-#run
+#if Check_API
 {
-    #import "Compiler";
-    #import "String";
-
-    has_error := false;
-    api := type_info(API);
-    impl := type_info(API_Impl);
-    for api_member : api.members
+    #run
     {
-        overload_name := api_member.name;
-        index := find_index_from_right(overload_name, #char "_");
-        if index != -1
-            overload_name.count = index;
+        #import "Compiler";
+        #import "String";
 
-        member_info := (cast(**Type_Info) (api.constant_storage.data + api_member.offset_into_constant_storage)).*;
-
-        for impl_member : impl.members
+        has_error := false;
+        api := type_info(API);
+        impl := type_info(APIImpl);
+        for api_member : api.members
         {
-            for note : impl_member.notes
+            overload_name := api_member.name;
+            index := find_index_from_right(overload_name, #char "_");
+            if index != -1
+                overload_name.count = index;
+
+            member_info := (cast(**Type_Info) (api.constant_storage.data + api_member.offset_into_constant_storage)).*;
+
+            for impl_member : impl.members
             {
-                if note == "PlatformSpecific"
-                    continue impl_member;
+                for note : impl_member.notes
+                {
+                    if note == "PlatformSpecific"
+                        continue impl_member;
+                }
+
+                if impl_member.name == overload_name
+                && impl_member.type == member_info
+                {
+                    //print("Found implementation for %\n", overload_name);
+                    continue api_member;
+                }
             }
 
-            if impl_member.name == overload_name
-            && impl_member.type == member_info
-            {
-                //print("Found implementation for %\n", overload_name);
-                continue api_member;
-            }
+            compiler_report(tprint("API coverage: % :: % is not implemented for this platform", overload_name, get_type(member_info)), mode=.ERROR_CONTINUABLE);
+            has_error = true;
         }
 
-        compiler_report(tprint("API coverage: % :: % is not implemented for this platform", overload_name, get_type(member_info)), mode=.ERROR_CONTINUABLE);
-        has_error = true;
+        if has_error
+            exit(1);
     }
-
-    if has_error
-        exit(1);
 }
 
 // @Todo: make a function that checks if we define all of these below

@@ -180,7 +180,7 @@ InitializeWindowClassesAndCursors :: ()
 
 #scope_export
 
-using API_Impl :: struct
+using APIImpl :: struct
 {
 
 CaptionHitTestProc :: #type(*Window, mouse_x : s32, mouse_y : s32) -> on_caption : bool;

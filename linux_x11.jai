@@ -4,16 +4,6 @@
 #import "Basic";
 X11 :: #import "X11";
 
-PlatformHandle :: X11.Window;
-
-Window :: struct
-{
-    x, y : s32;
-    viewport_width, viewport_height : s32;
-    handle : X11.Window;
-    last_mouse_button_release_time : [3]X11.Time; // In ms
-}
-
 GetOpenedXDisplay :: inline () -> *X11.Display #must #no_context
 {
     return g_display;
@@ -58,6 +48,19 @@ Initialize :: ()
 }
 
 #scope_export
+
+using APIImpl :: struct
+{
+
+PlatformHandle :: X11.Window;
+
+Window :: struct
+{
+    x, y : s32;
+    viewport_width, viewport_height : s32;
+    handle : X11.Window;
+    last_mouse_button_release_time : [3]X11.Time; // In ms
+}
 
 GetPlatformHandle :: inline (window : *Window) -> PlatformHandle #must
 #no_context
@@ -197,6 +200,8 @@ PollMessages :: () -> []Message
     }
 
     return g_message_queue;
+}
+
 }
 
 #scope_file
