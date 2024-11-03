@@ -1,5 +1,7 @@
 // @Todo: handle window width and height (= viewport size with caption and borders)
 // @Todo: raw mouse movement
+// @Todo: handle maximize/minimize events, show and hide events,
+// display changed events
 
 // To implement for ImGui Fenetres backend:
 // SetCursor
@@ -23,6 +25,7 @@ g_double_click_time_ms : u64 = 500;
 g_display : *X11.Display;
 g_wm_delete_window : X11.Atom;
 g_wm_protocols : X11.Atom;
+g_active_window : X11.Atom;
 g_wm_state : X11.Atom;
 g_wm_state_hidden : X11.Atom;
 g_wm_state_maximized_vert : X11.Atom;
@@ -31,6 +34,26 @@ g_wm_state_maximized_horz : X11.Atom;
 g_initialized : bool;
 g_error_buffer : [10000]u8 = ---;
 g_message_queue : [..]Message;
+
+SendClientMessage :: (window : X11.Window, type : X11.Atom, args : ..s64) #no_context
+{
+    ctx : Context;
+    push_context, defer_pop ctx;
+
+    event : X11.XEvent;
+    event.xclient.type = X11.ClientMessage;
+    event.xclient.send_event = X11.True;
+    event.xclient.message_type = type;
+    event.xclient.window = window;
+    event.xclient.format = 32;
+    for i : 0..min(args.count, 5) - 1
+    {
+        event.xclient.data.l[i] = args[i];
+    }
+
+    root := X11.DefaultRootWindow(g_display);
+    X11.XSendEvent(g_display, root, X11.False, X11.SubstructureRedirectMask | X11.SubstructureNotifyMask, *event);
+}
 
 HandleXError :: (d : *X11.Display, event : *X11.XErrorEvent) -> s32 #c_call
 {
@@ -57,6 +80,7 @@ Initialize :: ()
 
     g_wm_protocols = X11.XInternAtom(g_display, "WM_PROTOCOLS", X11.False);
     g_wm_delete_window = X11.XInternAtom(g_display, "WM_DELETE_WINDOW", X11.False);
+    g_active_window = X11.XInternAtom(g_display, "_NET_ACTIVE_WINDOW", X11.False);
     g_wm_state = X11.XInternAtom(g_display, "_NET_WM_STATE", X11.False);
     g_wm_state_hidden = X11.XInternAtom(g_display, "_NET_WM_STATE_HIDDEN", X11.False);
     g_wm_state_maximized_vert = X11.XInternAtom(g_display, "_NET_WM_STATE_MAXIMIZED_VERT", X11.False);
@@ -293,7 +317,7 @@ IsMaximized :: (window : *Window) -> bool #must #no_context
     );
     defer X11.XFree(states);
 
-    if ok != X11.Success || num_states == 0
+    if ok != X11.Success || num_states == 0 || actual_type != X11.XA_ATOM
         return false;
 
     for i : 0..num_states - 1
@@ -327,7 +351,7 @@ IsMinimized :: (window : *Window) -> bool #must #no_context
     );
     defer X11.XFree(states);
 
-    if ok != X11.Success || num_states == 0
+    if ok != X11.Success || num_states == 0 || actual_type != X11.XA_ATOM
         return false;
 
     for i : 0..num_states - 1
@@ -341,14 +365,21 @@ IsMinimized :: (window : *Window) -> bool #must #no_context
 
 Maximize :: (window : *Window) #no_context
 {
+    SendClientMessage(window.handle, g_wm_state, X11._NET_WM_STATE_REMOVE, xx g_wm_state_hidden);
+    SendClientMessage(window.handle, g_wm_state, X11._NET_WM_STATE_ADD, xx g_wm_state_maximized_vert, xx g_wm_state_maximized_horz);
 }
 
 Restore :: (window : *Window) #no_context
 {
+    SendClientMessage(window.handle, g_wm_state, X11._NET_WM_STATE_REMOVE, xx g_wm_state_maximized_vert, xx g_wm_state_maximized_horz);
+    SendClientMessage(window.handle, g_wm_state, X11._NET_WM_STATE_REMOVE, xx g_wm_state_hidden);
+    SendClientMessage(window.handle, g_active_window, 1, 0);
 }
 
 Minimize :: (window : *Window) #no_context
 {
+    SendClientMessage(window.handle, g_wm_state, X11._NET_WM_STATE_REMOVE, xx g_wm_state_maximized_vert, xx g_wm_state_maximized_horz);
+    X11.XIconifyWindow(g_display, window.handle, X11.XDefaultScreen(g_display));
 }
 
 SetWindowVisibility :: (window : *Window, visible : bool) #no_context
