@@ -593,20 +593,21 @@ SetMousePosition :: (window : *Window, x : s32, y : s32) #no_context
 
 SetMouseCapture :: (window : *Window, capture : bool) #no_context
 {
-    if capture
-    {
-        X11.XGrabPointer(
-            g_display, window.handle,
-            X11.False,
-            X11.PointerMotionMask | X11.ButtonPressMask | X11.ButtonReleaseMask,
-            X11.GrabModeSync, X11.GrabModeSync,
-            X11.None, X11.None, 0
-        );
-    }
-    else
-    {
-        X11.XUngrabPointer(g_display, 0);
-    }
+    // Causes the window system to freeze...
+    // if capture
+    // {
+    //     X11.XGrabPointer(
+    //         g_display, window.handle,
+    //         X11.False,
+    //         X11.PointerMotionMask | X11.ButtonPressMask | X11.ButtonReleaseMask,
+    //         X11.GrabModeSync, X11.GrabModeSync,
+    //         X11.None, X11.None, 0
+    //     );
+    // }
+    // else
+    // {
+    //     X11.XUngrabPointer(g_display, 0);
+    // }
 }
 
 GetClipboardTextData :: () -> string #must
