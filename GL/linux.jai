@@ -43,7 +43,7 @@ MakeCurrent :: inline (window : *Window, ctx : GLContext) #no_context
 
 ShareContexts :: inline (first : GLContext, second : GLContext) -> bool #no_context
 {
-    return xx Win32.wglShareLists(first, second);
+    return false;
 }
 
 GetCurrentContext :: inline () -> GLContext #must #no_context
