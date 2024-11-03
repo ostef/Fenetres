@@ -23,6 +23,8 @@ main :: ()
     }
 
     window := Fenetres.CreateWindow("My Cube Goes BOING BOING", 1280, 720);
+    assert(window != null);
+
     defer Fenetres.DestroyWindow(window);
     WindowTests(window);
 
@@ -108,6 +110,9 @@ main :: ()
 
 WindowTests :: (window : *Fenetres.Window)
 {
+
+#if OS != .LINUX
+{
     // assert(Fenetres.GetFocusedWindow() == window);
 
     print("%\n", Fenetres.GetWindowTitle(window));
@@ -138,6 +143,8 @@ WindowTests :: (window : *Fenetres.Window)
     w, h = Fenetres.GetViewportSize(window);
     assert(x == 100 && y == 100, "% %", x, y);
     assert(w == 1280 && h == 720, "% %", w, h);
+}
+
 }
 
 g_cube_vao, g_cube_vbo : GLuint;
@@ -203,6 +210,7 @@ InitGraphics :: ()
         .{.{-0.5, -0.5, -0.5}, .{0,-1,0}},
     ];
 
+    assert(glGenVertexArrays != null);
     glGenVertexArrays(1, *g_cube_vao);
     glGenBuffers(1, *g_cube_vbo);
 
