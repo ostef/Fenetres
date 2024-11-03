@@ -466,14 +466,6 @@ GetViewportSize :: inline (window : *Window) -> width : s32, height : s32 #no_co
     return rect.right - rect.left, rect.bottom - rect.top;
 }
 
-GetViewportSizeInPixels :: inline (window : *Window) -> width : s32, height : s32 #no_context
-{
-    scale := GetWindowScaleFactor(window);
-    w, h := GetViewportSize(window);
-
-    return xx (w * scale), xx (h * scale);
-}
-
 SetViewportSize :: inline (window : *Window, width : s32, height : s32) #no_context
 {
     style := cast, no_check(Win32.WINDOW_STYLE) Win32.GetWindowLongW(window.hwnd, .GWL_STYLE);

@@ -34,6 +34,14 @@ IsFocused :: inline (window : *Window) -> bool #must #no_context
     return GetFocusedWindow() == window;
 }
 
+GetViewportSizeInPixels :: inline (window : *Window) -> width : s32, height : s32 #no_context
+{
+    scale := GetWindowScaleFactor(window);
+    w, h := GetViewportSize(window);
+
+    return xx (w * scale), xx (h * scale);
+}
+
 DisplayInfo :: struct
 {
     is_primary : bool;

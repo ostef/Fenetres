@@ -2,18 +2,11 @@
 // @Todo: raw mouse movement
 
 // To implement for ImGui Fenetres backend:
-// GetViewportSizeInPixels
-// GetFocusedWindow
-// SetFocusedWindow
-// SetMouseCapture
 // SetCursor
 // GetDisplays
 // GetClipboardTextData
 // SetClipboardTextData
 // ClearClipboard
-// SetWindowVisibility
-// ShowAndFocusWindow
-// IsMinimized
 // All Fenetres GL stuff
 
 #import "Basic";
@@ -30,6 +23,10 @@ g_double_click_time_ms : u64 = 500;
 g_display : *X11.Display;
 g_wm_delete_window : X11.Atom;
 g_wm_protocols : X11.Atom;
+g_wm_state : X11.Atom;
+g_wm_state_hidden : X11.Atom;
+g_wm_state_maximized_vert : X11.Atom;
+g_wm_state_maximized_horz : X11.Atom;
 
 g_initialized : bool;
 g_error_buffer : [10000]u8 = ---;
@@ -58,8 +55,12 @@ Initialize :: ()
     g_display = X11.XOpenDisplay(null);
     assert(g_display != null);
 
-    g_wm_delete_window = X11.XInternAtom(g_display, "WM_DELETE_WINDOW", 1);
-    g_wm_protocols     = X11.XInternAtom(g_display, "WM_PROTOCOLS", 1);
+    g_wm_protocols = X11.XInternAtom(g_display, "WM_PROTOCOLS", X11.False);
+    g_wm_delete_window = X11.XInternAtom(g_display, "WM_DELETE_WINDOW", X11.False);
+    g_wm_state = X11.XInternAtom(g_display, "_NET_WM_STATE", X11.False);
+    g_wm_state_hidden = X11.XInternAtom(g_display, "_NET_WM_STATE_HIDDEN", X11.False);
+    g_wm_state_maximized_vert = X11.XInternAtom(g_display, "_NET_WM_STATE_MAXIMIZED_VERT", X11.False);
+    g_wm_state_maximized_horz = X11.XInternAtom(g_display, "_NET_WM_STATE_MAXIMIZED_HORZ", X11.False);
 }
 
 #scope_export
@@ -255,7 +256,7 @@ SetViewportSize :: (window : *Window, w : s32, h : s32) #no_context
     X11.XConfigureWindow(g_display, window.handle, (1<<2) | (1<<3), *change);
 }
 
-GetFocusedWindow :: () -> *Window, non_fenetres_window : bool #no_context
+GetFocusedWindow :: () -> *Window #must, non_fenetres_window : bool #no_context
 {
     result : X11.Window;
     revert_to : s32;
@@ -269,6 +270,107 @@ GetFocusedWindow :: () -> *Window, non_fenetres_window : bool #no_context
 SetFocusedWindow :: (window : *Window) #no_context
 {
     X11.XSetInputFocus(g_display, window.handle, 0, 0);
+}
+
+IsMaximized :: (window : *Window) -> bool #must #no_context
+{
+    actual_type : X11.Atom;
+    actual_format : s32;
+    num_states, remaining : u64;
+    states : *X11.Atom;
+    ok := X11.XGetWindowProperty(
+        g_display, window.handle,
+        g_wm_state,
+        0,
+        1024,
+        X11.False,
+        X11.XA_ATOM,
+        *actual_type,
+        *actual_format,
+        *num_states,
+        *remaining,
+        xx *states
+    );
+    defer X11.XFree(states);
+
+    if ok != X11.Success || num_states == 0
+        return false;
+
+    for i : 0..num_states - 1
+    {
+        if states[i] == g_wm_state_maximized_horz
+            return true;
+    }
+
+    return false;
+}
+
+IsMinimized :: (window : *Window) -> bool #must #no_context
+{
+    actual_type : X11.Atom;
+    actual_format : s32;
+    num_states, remaining : u64;
+    states : *X11.Atom;
+
+    ok := X11.XGetWindowProperty(
+        g_display, window.handle,
+        g_wm_state,
+        0,
+        1024,
+        X11.False,
+        X11.XA_ATOM,
+        *actual_type,
+        *actual_format,
+        *num_states,
+        *remaining,
+        xx *states
+    );
+    defer X11.XFree(states);
+
+    if ok != X11.Success || num_states == 0
+        return false;
+
+    for i : 0..num_states - 1
+    {
+        if states[i] == g_wm_state_hidden
+            return true;
+    }
+
+    return false;
+}
+
+Maximize :: (window : *Window) #no_context
+{
+}
+
+Restore :: (window : *Window) #no_context
+{
+}
+
+Minimize :: (window : *Window) #no_context
+{
+}
+
+SetWindowVisibility :: (window : *Window, visible : bool) #no_context
+{
+    if visible
+    {
+        X11.XMapWindow(g_display, window.handle);
+
+        // Restore window to original position and size
+        SetViewportPosition(window, window.x, window.y);
+        SetViewportSize(window, window.viewport_width, window.viewport_height);
+    }
+    else
+    {
+        X11.XUnmapWindow(g_display, window.handle);
+    }
+}
+
+ShowAndFocusWindow :: (window : *Window) #no_context
+{
+    SetWindowVisibility(window, true);
+    SetFocusedWindow(window);
 }
 
 ScreenToWindowPosition :: (window : *Window, x : s32, y : s32) -> x : s32, y : s32 #no_context
@@ -331,6 +433,24 @@ SetMousePosition :: (window : *Window, x : s32, y : s32) #no_context
 
     handle := ifx window then window.handle else X11.DefaultRootWindow(g_display);
     X11.XWarpPointer(g_display, 0, handle, 0, 0, 0, 0, x, y);
+}
+
+SetMouseCapture :: (window : *Window, capture : bool) #no_context
+{
+    if capture
+    {
+        X11.XGrabPointer(
+            g_display, window.handle,
+            X11.False,
+            X11.PointerMotionMask | X11.ButtonPressMask | X11.ButtonReleaseMask,
+            X11.GrabModeSync, X11.GrabModeSync,
+            X11.None, X11.None, 0
+        );
+    }
+    else
+    {
+        X11.XUngrabPointer(g_display, 0);
+    }
 }
 
 }
