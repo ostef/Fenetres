@@ -77,6 +77,14 @@ SystemCursor :: enum
     Size_Horizontal;
     Size_Vertical;
     Not_Allowed;
+    Size_Left;
+    Size_Right;
+    Size_Top;
+    Size_Bottom;
+    Size_Top_Left;
+    Size_Top_Right;
+    Size_Bottom_Left;
+    Size_Bottom_Right;
 
     Count;
 }

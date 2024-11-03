@@ -30,6 +30,33 @@ g_wm_state : X11.Atom;
 g_wm_state_hidden : X11.Atom;
 g_wm_state_maximized_vert : X11.Atom;
 g_wm_state_maximized_horz : X11.Atom;
+g_cursors : struct
+{
+    all : [SystemCursor.Count]X11.Cursor;
+
+    #place all;
+    none : X11.Cursor;
+    arrow : X11.Cursor;
+    arrow_busy : X11.Cursor;
+    busy : X11.Cursor;
+    cross : X11.Cursor;
+    hand : X11.Cursor;
+    ibeam : X11.Cursor;
+    size : X11.Cursor;
+    size_nwse : X11.Cursor;
+    size_nesw : X11.Cursor;
+    size_horizontal : X11.Cursor;
+    size_vertical : X11.Cursor;
+    not_allowed : X11.Cursor;
+    size_left : X11.Cursor;
+    size_right : X11.Cursor;
+    size_top : X11.Cursor;
+    size_bottom : X11.Cursor;
+    size_top_left : X11.Cursor;
+    size_top_right : X11.Cursor;
+    size_bottom_left : X11.Cursor;
+    size_bottom_right : X11.Cursor;
+};
 
 g_initialized : bool;
 g_error_buffer : [10000]u8 = ---;
@@ -85,6 +112,53 @@ Initialize :: ()
     g_wm_state_hidden = X11.XInternAtom(g_display, "_NET_WM_STATE_HIDDEN", X11.False);
     g_wm_state_maximized_vert = X11.XInternAtom(g_display, "_NET_WM_STATE_MAXIMIZED_VERT", X11.False);
     g_wm_state_maximized_horz = X11.XInternAtom(g_display, "_NET_WM_STATE_MAXIMIZED_HORZ", X11.False);
+
+    {
+        using g_cursors;
+
+        XC_left_ptr :: 68;
+        XC_bottom_left_corner :: 12;
+        XC_bottom_right_corner :: 14;
+        XC_bottom_side :: 16;
+        XC_left_side :: 70;
+        XC_top_left_corner :: 134;
+        XC_top_right_corner :: 136;
+        XC_top_side :: 138;
+        XC_right_side :: 96;
+        XC_sb_h_double_arrow :: 108;
+        XC_sb_v_double_arrow :: 116;
+        XC_watch :: 150;
+        XC_xterm :: 152;
+        XC_fleur :: 52;
+        XC_cross :: 30;
+        XC_hand2 :: 60;
+
+        black : X11.XColor;
+        no_data := u8.[0,0,0,0,0,0,0,0];
+        bitmap := X11.XCreateBitmapFromData(g_display, X11.DefaultRootWindow(g_display), no_data.data, 8, 8);
+        none = X11.XCreatePixmapCursor(g_display, bitmap, bitmap, *black, *black, 0, 0);
+
+        arrow = X11.XCreateFontCursor(g_display, XC_left_ptr);
+        arrow_busy = X11.XCreateFontCursor(g_display, XC_watch);
+        busy = X11.XCreateFontCursor(g_display, XC_watch);
+        cross = X11.XCreateFontCursor(g_display, XC_cross);
+        hand = X11.XCreateFontCursor(g_display, XC_hand2);
+        ibeam = X11.XCreateFontCursor(g_display, XC_xterm);
+        size = X11.XCreateFontCursor(g_display, XC_fleur);
+        size_nwse = X11.XCreateFontCursor(g_display, XC_top_left_corner);
+        size_nesw = X11.XCreateFontCursor(g_display, XC_top_right_corner);
+        size_horizontal = X11.XCreateFontCursor(g_display, XC_sb_h_double_arrow);
+        size_vertical = X11.XCreateFontCursor(g_display, XC_sb_v_double_arrow);
+        not_allowed = X11.XCreateFontCursor(g_display, XC_left_ptr);
+        size_left = X11.XCreateFontCursor(g_display, XC_left_side);
+        size_right = X11.XCreateFontCursor(g_display, XC_right_side);
+        size_top = X11.XCreateFontCursor(g_display, XC_top_side);
+        size_bottom = X11.XCreateFontCursor(g_display, XC_bottom_side);
+        size_top_left = X11.XCreateFontCursor(g_display, XC_top_left_corner);
+        size_top_right = X11.XCreateFontCursor(g_display, XC_top_right_corner);
+        size_bottom_left = X11.XCreateFontCursor(g_display, XC_bottom_left_corner);
+        size_bottom_right = X11.XCreateFontCursor(g_display, XC_bottom_right_corner);
+    }
 }
 
 #scope_export
@@ -220,6 +294,11 @@ PollMessages :: () -> []Message
     }
 
     return g_message_queue;
+}
+
+SetCursor :: (window : *Window, cursor : SystemCursor) #no_context
+{
+    X11.XDefineCursor(g_display, window.handle, g_cursors.all[cursor]);
 }
 
 GetWindowTitle :: (window : *Window) -> string #must
@@ -482,6 +561,19 @@ SetMouseCapture :: (window : *Window, capture : bool) #no_context
     {
         X11.XUngrabPointer(g_display, 0);
     }
+}
+
+GetClipboardTextData :: () -> string #must
+{
+    return "";
+}
+
+SetClipboardTextData :: (text : string)
+{
+}
+
+ClearClipboard :: ()
+{
 }
 
 }

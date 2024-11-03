@@ -32,6 +32,14 @@ g_cursors : struct
     size_horizontal : Win32.HCURSOR;
     size_vertical : Win32.HCURSOR;
     not_allowed : Win32.HCURSOR;
+    size_left : Win32.HCURSOR;
+    size_right : Win32.HCURSOR;
+    size_top : Win32.HCURSOR;
+    size_bottom : Win32.HCURSOR;
+    size_top_left : Win32.HCURSOR;
+    size_top_right : Win32.HCURSOR;
+    size_bottom_left : Win32.HCURSOR;
+    size_bottom_right : Win32.HCURSOR;
 };
 
 g_message_queue : [..]Message;
@@ -157,19 +165,29 @@ InitializeWindowClassesAndCursors :: ()
         assert(ok, "RegisterClassExW for CustomCaptionWindowClass failed: %", GetLastErrorString());
     }
     {
-        g_cursors.none = null;
-        g_cursors.arrow = Win32.LoadCursorW(null, Win32.IDC_ARROW);
-        g_cursors.arrow_busy = Win32.LoadCursorW(null, Win32.IDC_APPSTARTING);
-        g_cursors.busy = Win32.LoadCursorW(null, Win32.IDC_WAIT);
-        g_cursors.cross = Win32.LoadCursorW(null, Win32.IDC_CROSS);
-        g_cursors.hand = Win32.LoadCursorW(null, Win32.IDC_HAND);
-        g_cursors.ibeam = Win32.LoadCursorW(null, Win32.IDC_IBEAM);
-        g_cursors.size = Win32.LoadCursorW(null, Win32.IDC_SIZEALL);
-        g_cursors.size_nwse = Win32.LoadCursorW(null, Win32.IDC_SIZENWSE);
-        g_cursors.size_nesw = Win32.LoadCursorW(null, Win32.IDC_SIZENESW);
-        g_cursors.size_horizontal = Win32.LoadCursorW(null, Win32.IDC_SIZEWE);
-        g_cursors.size_vertical = Win32.LoadCursorW(null, Win32.IDC_SIZENS);
-        g_cursors.not_allowed = Win32.LoadCursorW(null, Win32.IDC_NO);
+        using g_cursors;
+
+        none = null;
+        arrow = Win32.LoadCursorW(null, Win32.IDC_ARROW);
+        arrow_busy = Win32.LoadCursorW(null, Win32.IDC_APPSTARTING);
+        busy = Win32.LoadCursorW(null, Win32.IDC_WAIT);
+        cross = Win32.LoadCursorW(null, Win32.IDC_CROSS);
+        hand = Win32.LoadCursorW(null, Win32.IDC_HAND);
+        ibeam = Win32.LoadCursorW(null, Win32.IDC_IBEAM);
+        size = Win32.LoadCursorW(null, Win32.IDC_SIZEALL);
+        size_nwse = Win32.LoadCursorW(null, Win32.IDC_SIZENWSE);
+        size_nesw = Win32.LoadCursorW(null, Win32.IDC_SIZENESW);
+        size_horizontal = Win32.LoadCursorW(null, Win32.IDC_SIZEWE);
+        size_vertical = Win32.LoadCursorW(null, Win32.IDC_SIZENS);
+        not_allowed = Win32.LoadCursorW(null, Win32.IDC_NO);
+        size_left = size_horizontal;
+        size_right = size_horizontal;
+        size_top = size_vertical;
+        size_bottom = size_vertical;
+        size_top_left = size_nwse;
+        size_top_right = size_nesw;
+        size_bottom_left = size_nesw;
+        size_bottom_right = size_nwse;
     }
 
     mouse : Win32.RAWINPUTDEVICE;
