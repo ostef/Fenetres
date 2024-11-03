@@ -4,7 +4,6 @@
 // display changed events
 
 // To implement for ImGui Fenetres backend:
-// SetCursor
 // GetDisplays
 // GetClipboardTextData
 // SetClipboardTextData
@@ -88,7 +87,7 @@ HandleXError :: (d : *X11.Display, event : *X11.XErrorEvent) -> s32 #c_call
     push_context, defer_pop ctx;
 
     X11.XGetErrorText(d, event.error_code, g_error_buffer.data, g_error_buffer.count);
-    log_error("%", to_string(g_error_buffer.data));
+    log_error("Error: %", to_string(g_error_buffer.data));
 
     return 0;
 }
@@ -170,6 +169,7 @@ PlatformHandle :: X11.Window;
 
 Window :: struct
 {
+    visual : *X11.XVisualInfo;
     x, y : s32;
     viewport_width, viewport_height : s32;
     handle : X11.Window;
@@ -194,7 +194,6 @@ ShowErrorBox :: inline (fmt_str : string, args : ..Any)
 
 GetDisplays :: inline () -> []DisplayInfo #must
 {
-    assert(false);
     return .[];
 }
 
@@ -222,12 +221,61 @@ CreateWindow :: (
     parent_handle := ifx parent then parent.handle else X11.DefaultRootWindow(d);
     assert(parent_handle != 0);
 
-    handle := X11.XCreateSimpleWindow(
+    glx_attribs := s32.[
+        X11.GLX_RGBA,
+        X11.GLX_DOUBLEBUFFER,
+        X11.GLX_DEPTH_SIZE, 24,
+        X11.GLX_STENCIL_SIZE, 8,
+        X11.GLX_RED_SIZE, 8,
+        X11.GLX_GREEN_SIZE, 8,
+        X11.GLX_BLUE_SIZE, 8,
+        X11.GLX_SAMPLE_BUFFERS, 0,
+        X11.GLX_SAMPLES, 0,
+        0
+    ];
+    screen_id := X11.DefaultScreen(g_display);
+    visual := X11.glXChooseVisual(g_display, screen_id, glx_attribs.data);
+    if !visual
+        return null;
+
+    event_mask : s32;
+    event_mask |= X11.ExposureMask;
+    event_mask |= X11.StructureNotifyMask;
+    event_mask |= X11.FocusChangeMask;
+    event_mask |= X11.KeyPressMask | X11.KeyReleaseMask;
+    event_mask |= X11.PointerMotionMask;
+    event_mask |= X11.ButtonPressMask | X11.ButtonReleaseMask;
+    event_mask |= X11.EnterWindowMask | X11.LeaveWindowMask;
+
+    attr : X11.XSetWindowAttributes;
+    attr.border_pixel = X11.XBlackPixel(g_display, screen_id);
+    attr.background_pixel = X11.XWhitePixel(g_display, screen_id);
+    attr.override_redirect = X11.True;
+    attr.colormap = X11.XCreateColormap(g_display, parent_handle, visual.visual, X11.AllocNone);
+    attr.event_mask = event_mask;
+
+    CWBlackPixel :: 1 << 1;
+    CWBorderPixel :: 1 << 3;
+    CWColormap :: 1 << 13;
+    CWEventMask :: 1 << 11;
+
+    if x < 0
+        x = 0;
+    if y < 0
+        y = 0;
+    if width < 0
+        width = 0;
+    if height < 0
+        height = 0;
+
+    handle := X11.XCreateWindow(
         d, parent_handle,
         xx x, xx y, xx width, xx height,
-        0, 0, 0xffffffff
+        0, visual.depth, X11.InputOutput, visual.visual,
+        CWBlackPixel | CWColormap | CWBorderPixel | CWEventMask, *attr
     );
-    assert(handle != 0);
+    if !handle
+        return null;
 
     if title
     {
@@ -243,22 +291,20 @@ CreateWindow :: (
         }
     }
 
-    event_mask : s32;
-    event_mask |= X11.ExposureMask;
-    event_mask |= X11.StructureNotifyMask;
-    event_mask |= X11.FocusChangeMask;
-    event_mask |= X11.KeyPressMask | X11.KeyReleaseMask;
-    event_mask |= X11.PointerMotionMask;
-    event_mask |= X11.ButtonPressMask | X11.ButtonReleaseMask;
-    event_mask |= X11.EnterWindowMask | X11.LeaveWindowMask;
     X11.XSelectInput(d, handle, event_mask);
 
     X11.XSetWMProtocols(d, handle, *g_wm_delete_window, 1);
 
-    X11.XMapWindow(d, handle);
+    if !(flags & .Hidden)
+        X11.XMapWindow(d, handle);
 
     window := New(Window);
     window.handle = handle;
+    window.visual = visual;
+    window.x = x;
+    window.y = y;
+    window.viewport_width = width;
+    window.viewport_height = height;
     array_add(*g_all_windows, window);
 
     return window;
