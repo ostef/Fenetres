@@ -110,7 +110,7 @@ CreateContextWithoutWindow :: (flags : GLContextFlags = 0, major_version : s32 =
     }
 
     ctx := objc_alloc(NSOpenGLContext);
-    ctx = ctx.initWithFormat(ctx, pixel_format, null);
+    ctx = ctx.initWithFormat(ctx, pixel_format, share_context);
     if !ctx
     {
         log_error("Could not create GL context (flags: %, version: %.%)", flags, major_version, minor_version);
@@ -123,9 +123,9 @@ CreateContextWithoutWindow :: (flags : GLContextFlags = 0, major_version : s32 =
     return ctx;
 }
 
-CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled, major_version : s32 = 0, minor_version : s32 = 0) -> GLContext #must
+CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled, major_version : s32 = 0, minor_version : s32 = 0, share_context : GLContext = null) -> GLContext #must
 {
-    ctx := CreateContextWithoutWindow(flags, major_version, minor_version);
+    ctx := CreateContextWithoutWindow(flags, major_version, minor_version, share_context);
     if !ctx
         return null;
 
@@ -157,12 +157,6 @@ MakeCurrent :: inline (window : *Window, ctx : GLContext) #no_context
     push_context, defer_pop x;
 
     ctx.makeCurrentContext(ctx);
-}
-
-ShareContexts :: inline (first : GLContext, second : GLContext) -> bool #no_context
-{
-    //log_error("Unsupported after context creation on MacOS. Todo: add a parameter for this to CreateContext");
-    return false;
 }
 
 GetCurrentContext :: inline () -> GLContext #must #no_context

@@ -20,9 +20,9 @@ glx :: #system_library "libGL";
 
 GetProcAddress :: X11.glXGetProcAddress;
 
-CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled, major_version : s32 = 0, minor_version : s32 = 0) -> GLContext #must
+CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled, major_version : s32 = 0, minor_version : s32 = 0, share_context : GLContext = null) -> GLContext #must
 {
-    ctx := X11.glXCreateContext(GetOpenedXDisplay(), window.visual, null, X11.True);
+    ctx := X11.glXCreateContext(GetOpenedXDisplay(), window.visual, share_context, X11.True);
     if !ctx
         return null;
 
@@ -39,11 +39,6 @@ DestroyContext :: inline (ctx : GLContext) #no_context
 MakeCurrent :: inline (window : *Window, ctx : GLContext) #no_context
 {
     X11.glXMakeCurrent(GetOpenedXDisplay(), window.handle, ctx);
-}
-
-ShareContexts :: inline (first : GLContext, second : GLContext) -> bool #no_context
-{
-    return false;
 }
 
 GetCurrentContext :: inline () -> GLContext #must #no_context

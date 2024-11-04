@@ -17,7 +17,7 @@ GLContextFlags :: enum_flags
 
 GetProcAddress :: Win32.wglGetProcAddress;
 
-CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled, major_version : s32 = 0, minor_version : s32 = 0) -> GLContext #must
+CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled, major_version : s32 = 0, minor_version : s32 = 0, share_context : GLContext = null) -> GLContext #must
 {
     #import "GL";
 
@@ -124,7 +124,7 @@ CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled
 
         // @Todo: make sure the ShareContexts function still works when calling
         // wglCreateContextAttribsARB.
-        ctx = wglCreateContextAttribsARB(hdc, null, attribs.data);
+        ctx = wglCreateContextAttribsARB(hdc, share_context, attribs.data);
         if !ctx
         {
             log_error("GL context creation failed with flags % and version %.%", flags, major_version, minor_version);
@@ -138,6 +138,8 @@ CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled
         }
 
         ctx = Win32.wglCreateContext(hdc);
+        if ctx && share_context
+            Win32.wglShareLists(share_context, ctx);
     }
 
     Win32.wglMakeCurrent(hdc, ctx);
@@ -154,11 +156,6 @@ MakeCurrent :: inline (window : *Window, ctx : GLContext) #no_context
 {
     hdc := Win32.GetDC(window.hwnd);
     Win32.wglMakeCurrent(hdc, ctx);
-}
-
-ShareContexts :: inline (first : GLContext, second : GLContext) -> bool #no_context
-{
-    return xx Win32.wglShareLists(first, second);
 }
 
 GetCurrentContext :: inline () -> GLContext #must #no_context
