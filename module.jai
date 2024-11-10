@@ -378,14 +378,6 @@ KeyCode :: enum u8
     }
 }
 
-// @Todo: make a function that checks if we define all of these below
-// to ensure the API is correctly implemented on all platforms
-// We probably want to add a note on each procedure that is platform
-// specific, and the set of all procedures that don't have the note
-// must match *exactly* the set of procedures below
-// Same for structs (or API structs should be defined here, and we should
-// make them opaque if they have platform specific fields)
-
 // This structure lists all the API functions that should be implemented on each platform
 // We then use this structure and compare it to actual implementation structure to ensure
 // the API is correctly implemented for all platforms

@@ -347,6 +347,18 @@ SetCursor :: (window : *Window, cursor : SystemCursor) #no_context
     X11.XDefineCursor(g_display, window.handle, g_cursors.all[cursor]);
 }
 
+// @Todo
+SetCursorConstraint :: (x : s32, y : s32, w : s32, h : s32) -> bool #no_context
+{
+    return false;
+}
+
+// @Todo
+RemoveCursorConstraint :: () -> bool #no_context
+{
+    return false;
+}
+
 GetWindowTitle :: (window : *Window) -> string #must
 {
     result : *u8;
