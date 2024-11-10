@@ -174,6 +174,7 @@ Window :: struct
     viewport_width, viewport_height : s32;
     handle : X11.Window;
     last_mouse_button_release_time : [3]X11.Time; // In ms
+    prev_mouse_x, prev_mouse_y : s32;
 }
 
 GetPlatformHandle :: inline (window : *Window) -> PlatformHandle #must
@@ -790,11 +791,22 @@ HandleXEvent :: (event : X11.XEvent)
         msg.mouse_y = event.xmotion.y;
         array_add(*g_message_queue, msg);
 
+        msg.kind = .Mouse_Raw_Moved;
+        msg.mouse_delta_x = msg.mouse_x - window.prev_mouse_x;
+        msg.mouse_delta_y = msg.mouse_y - window.prev_mouse_y;
+        array_add(*g_message_queue, msg);
+
+        window.prev_mouse_x = msg.mouse_x;
+        window.prev_mouse_y = msg.mouse_y;
+
     case X11.EnterNotify;
         msg : Message;
         msg.kind = .Mouse_Entered_Window;
         msg.window = window;
         array_add(*g_message_queue, msg);
+
+        window.prev_mouse_x = event.xcrossing.x;
+        window.prev_mouse_y = event.xcrossing.y;
 
     case X11.LeaveNotify;
         msg : Message;
