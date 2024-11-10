@@ -74,8 +74,5 @@ SetSwapInterval :: inline (interval : s32) -> bool #no_context
 
 GetSwapInterval :: inline () -> s32 #must #no_context
 {
-    value : s32;
-    glXQueryDrawable(glXGetCurrentDisplay(), glXGetCurrentDrawable(), GLX_SWAP_INTERVAL_EXT, *swap);
-
-    return value;
+    return 0;
 }
