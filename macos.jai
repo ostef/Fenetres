@@ -12,20 +12,11 @@ Window :: struct
     #as using handle : *NSWindow;
 }
 
-GetPlatformHandle :: inline (window : *Window) -> *void #must #no_context
+PlatformHandle :: *void;
+
+GetPlatformHandle :: inline (window : *Window) -> PlatformHandle #must #no_context
 {
     return window.handle;
-}
-
-GetWindowFromPlatformHandle :: inline (handle : *void) -> *Window #must #no_context
-{
-    for g_all_windows
-    {
-        if it.handle == handle
-            return it;
-    }
-
-    return null;
 }
 
 CreateWindowExtraParams :: struct
@@ -530,18 +521,6 @@ GetViewportSize :: inline (window : *Window) -> width : s32, height : s32 #no_co
     return xx rect.size.width, xx rect.size.height;
 }
 
-GetViewportSizeInPixels :: inline (window : *Window) -> px_width : s32, px_height : s32 #no_context
-{
-    ctx : Context;
-    push_context, defer_pop ctx;
-
-    view := window.contentView(window);
-    width, height := GetViewportSize(window);
-    scale := view.backingScaleFactor(view);
-
-    return xx (width * scale), xx (height * scale);
-}
-
 SetViewportSize :: inline (window : *Window, width : s32, height : s32) #no_context
 {
     ctx : Context;
@@ -573,11 +552,6 @@ SetFocusedWindow :: inline (window : *Window) #no_context
     push_context, defer_pop ctx;
 
     window.makeKeyAndOrderFront(window, null);
-}
-
-IsFocused :: inline (window : *Window) -> bool #must #no_context
-{
-    return GetFocusedWindow() == window;
 }
 
 // There is no maximized state on MacOS
@@ -1023,6 +997,15 @@ SetCursor :: inline (window : *Window, cursor : SystemCursor) #no_context
         NSCursor.set(NSCursor.resizeUpDownCursor());
     case .Not_Allowed;
         NSCursor.set(NSCursor.operationNotAllowedCursor());
+
+    case .Size_Left;
+    case .Size_Right;
+    case .Size_Top;
+    case .Size_Bottom;
+    case .Size_Top_Left;
+    case .Size_Top_Right;
+    case .Size_Bottom_Left;
+    case .Size_Bottom_Right;
     case .Count;
     }
 }

@@ -35,7 +35,7 @@ GetProcAddress :: (name : *u8) -> *void #c_call
     return POSIX.dlsym(g_gl_lib, name);
 }
 
-CreateContextWithoutWindow :: (flags : GLContextFlags = 0, major_version : s32 = 0, minor_version : s32 = 0) -> GLContext #must
+CreateContextWithoutWindow :: (flags : GLContextFlags = 0, major_version : s32 = 0, minor_version : s32 = 0, share_context : GLContext = null) -> GLContext #must
 {
     log_warning :: inline (fmt_str : string, args : ..Any, location := #caller_location, flags := Log_Flags.NONE, user_flags : u32 = 0)
     {
