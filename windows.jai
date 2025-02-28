@@ -837,274 +837,272 @@ WindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM, lparam : Win
     window_message : Message;
     window_message.window = window;
 
-    ctx : Context;
-    push_context ctx
+    push_context,defer_pop;
+
+    if msg ==
     {
-        if msg ==
+    case Win32.WM_DESTROY;
+        for g_all_windows
         {
-        case Win32.WM_DESTROY;
-            for g_all_windows
+            if it == window
             {
-                if it == window
-                {
-                    remove it;
-                    break;
-                }
+                remove it;
+                break;
+            }
+        }
+
+        free(window);
+        Win32.SetWindowLongPtrW(hwnd, .GWLP_USERDATA, cast(s64) null);
+
+    case Win32.WM_MOVE;
+        window_message.kind = .Window_Moved;
+        window_message.window_x = Win32.LOWORD(lparam);
+        window_message.window_y = Win32.HIWORD(lparam);
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_SIZE;
+        if wparam ==
+        {
+        case Win32.SIZE_RESTORED;
+            window_message.kind = .Window_Resized;
+        case Win32.SIZE_MINIMIZED;
+            window_message.kind = .Window_Minimized;
+        case Win32.SIZE_MAXIMIZED;
+            window_message.kind = .Window_Maximized;
+        }
+        window_message.viewport_w = Win32.LOWORD(lparam);
+        window_message.viewport_h = Win32.HIWORD(lparam);
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_CLOSE;
+        window_message.kind = .Window_Closed;
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_SHOWWINDOW;
+        if wparam
+            window_message.kind = .Window_Shown;
+        else
+            window_message.kind = .Window_Hidden;
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_SETFOCUS;
+        window_message.kind = .Window_Received_Focus;
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_KILLFOCUS;
+        window_message.kind = .Window_Lost_Focus;
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_CHAR;
+        codepoint := cast(u32) wparam;
+        Utf16_Hi_Surrogate  :: cast(u16) 0xd800;
+        Utf16_Lo_Surrogate  :: cast(u16) 0xdc00;
+        Utf16_Surrogate_End :: cast(u16) 0xdfff;
+
+        if codepoint >= Utf16_Hi_Surrogate && codepoint < Utf16_Lo_Surrogate
+        {
+            window.WM_CHAR_utf16_high_surrogate = cast(u16) codepoint;
+        }
+        else
+        {
+            if codepoint >= Utf16_Lo_Surrogate && codepoint <= Utf16_Surrogate_End
+            {
+                low_surrogate := cast(u16) codepoint;
+                codepoint  = (window.WM_CHAR_utf16_high_surrogate - Utf16_Hi_Surrogate) << 10;
+                codepoint += (low_surrogate - Utf16_Lo_Surrogate);
+                codepoint += 0x10000;
             }
 
-            free(window);
-            Win32.SetWindowLongPtrW(hwnd, .GWLP_USERDATA, cast(s64) null);
-
-        case Win32.WM_MOVE;
-            window_message.kind = .Window_Moved;
-            window_message.window_x = Win32.LOWORD(lparam);
-            window_message.window_y = Win32.HIWORD(lparam);
-            array_add(*g_message_queue, window_message);
-
-        case Win32.WM_SIZE;
-            if wparam ==
+            if codepoint > 31 && codepoint != 127
             {
-            case Win32.SIZE_RESTORED;
-                window_message.kind = .Window_Resized;
-            case Win32.SIZE_MINIMIZED;
-                window_message.kind = .Window_Minimized;
-            case Win32.SIZE_MAXIMIZED;
-                window_message.kind = .Window_Maximized;
+                window_message.kind = .Text_Input;
+                window_message.mods = GetKeyModState();
+                window_message.codepoint = codepoint;
+                array_add(*g_message_queue, window_message);
             }
-            window_message.viewport_w = Win32.LOWORD(lparam);
-            window_message.viewport_h = Win32.HIWORD(lparam);
-            array_add(*g_message_queue, window_message);
+        }
 
-        case Win32.WM_CLOSE;
-            window_message.kind = .Window_Closed;
-            array_add(*g_message_queue, window_message);
+    case Win32.WM_SYSKEYDOWN; #through;
+    case Win32.WM_SYSKEYUP; #through;
+    case Win32.WM_KEYDOWN; #through;
+    case Win32.WM_KEYUP;
+        using keystroke := DecomposeKeystrokeParam(lparam);
 
-        case Win32.WM_SHOWWINDOW;
-            if wparam
-                window_message.kind = .Window_Shown;
-            else
-                window_message.kind = .Window_Hidden;
-            array_add(*g_message_queue, window_message);
+        if msg == Win32.WM_KEYUP || msg == Win32.WM_SYSKEYUP
+            window_message.kind = .Key_Released;
+        else if previous_key_state
+            window_message.kind = .Key_Repeated;
+        else
+            window_message.kind = .Key_Pressed;
 
-        case Win32.WM_SETFOCUS;
-            window_message.kind = .Window_Received_Focus;
-            array_add(*g_message_queue, window_message);
+        window_message.mods = GetKeyModState();
 
-        case Win32.WM_KILLFOCUS;
-            window_message.kind = .Window_Lost_Focus;
-            array_add(*g_message_queue, window_message);
+        if wparam == xx Win32.VIRTUAL_KEY.VK_CONTROL
+        {
+            wparam = xx ifx !extended then Win32.VIRTUAL_KEY.VK_LCONTROL else Win32.VIRTUAL_KEY.VK_RCONTROL;
+        }
+        else if wparam == xx Win32.VIRTUAL_KEY.VK_MENU
+        {
+            wparam = xx ifx !extended then Win32.VIRTUAL_KEY.VK_LMENU else Win32.VIRTUAL_KEY.VK_RMENU;
+        }
+        else if wparam == xx Win32.VIRTUAL_KEY.VK_SHIFT
+        {
+            wparam = Win32.MapVirtualKeyW(scan_code, Win32.MAPVK_VSC_TO_VK_EX);
+        }
 
-        case Win32.WM_CHAR;
-            codepoint := cast(u32) wparam;
-            Utf16_Hi_Surrogate  :: cast(u16) 0xd800;
-            Utf16_Lo_Surrogate  :: cast(u16) 0xdc00;
-            Utf16_Surrogate_End :: cast(u16) 0xdfff;
+        window_message.key_code = VKToKeyCode(xx wparam);
 
-            if codepoint >= Utf16_Hi_Surrogate && codepoint < Utf16_Lo_Surrogate
-            {
-                window.WM_CHAR_utf16_high_surrogate = cast(u16) codepoint;
-            }
-            else
-            {
-                if codepoint >= Utf16_Lo_Surrogate && codepoint <= Utf16_Surrogate_End
-                {
-                    low_surrogate := cast(u16) codepoint;
-                    codepoint  = (window.WM_CHAR_utf16_high_surrogate - Utf16_Hi_Surrogate) << 10;
-                    codepoint += (low_surrogate - Utf16_Lo_Surrogate);
-                    codepoint += 0x10000;
-                }
+        array_add(*g_message_queue, window_message);
 
-                if codepoint > 31 && codepoint != 127
-                {
-                    window_message.kind = .Text_Input;
-                    window_message.mods = GetKeyModState();
-                    window_message.codepoint = codepoint;
-                    array_add(*g_message_queue, window_message);
-                }
-            }
-
-        case Win32.WM_SYSKEYDOWN; #through;
-        case Win32.WM_SYSKEYUP; #through;
-        case Win32.WM_KEYDOWN; #through;
-        case Win32.WM_KEYUP;
-            using keystroke := DecomposeKeystrokeParam(lparam);
-
-            if msg == Win32.WM_KEYUP || msg == Win32.WM_SYSKEYUP
-                window_message.kind = .Key_Released;
-            else if previous_key_state
-                window_message.kind = .Key_Repeated;
-            else
-                window_message.kind = .Key_Pressed;
-
-            window_message.mods = GetKeyModState();
-
-            if wparam == xx Win32.VIRTUAL_KEY.VK_CONTROL
-            {
-                wparam = xx ifx !extended then Win32.VIRTUAL_KEY.VK_LCONTROL else Win32.VIRTUAL_KEY.VK_RCONTROL;
-            }
-            else if wparam == xx Win32.VIRTUAL_KEY.VK_MENU
-            {
-                wparam = xx ifx !extended then Win32.VIRTUAL_KEY.VK_LMENU else Win32.VIRTUAL_KEY.VK_RMENU;
-            }
-            else if wparam == xx Win32.VIRTUAL_KEY.VK_SHIFT
-            {
-                wparam = Win32.MapVirtualKeyW(scan_code, Win32.MAPVK_VSC_TO_VK_EX);
-            }
-
-            window_message.key_code = VKToKeyCode(xx wparam);
-
-            array_add(*g_message_queue, window_message);
-
-            if msg == Win32.WM_SYSKEYDOWN || msg == Win32.WM_SYSKEYUP
-                return Win32.DefWindowProcW(hwnd, msg, wparam, lparam);
-
-        case Win32.WM_LBUTTONDOWN;
-            window_message.kind = .Mouse_Button_Pressed;
-            window_message.mouse_button = .Left;
-            window_message.mods = GetKeyModState();
-            window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
-            array_add(*g_message_queue, window_message);
-
-        case Win32.WM_RBUTTONDOWN;
-            window_message.kind = .Mouse_Button_Pressed;
-            window_message.mouse_button = .Right;
-            window_message.mods = GetKeyModState();
-            window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
-            array_add(*g_message_queue, window_message);
-
-        case Win32.WM_MBUTTONDOWN;
-            window_message.kind = .Mouse_Button_Pressed;
-            window_message.mouse_button = .Middle;
-            window_message.mods = GetKeyModState();
-            window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
-            array_add(*g_message_queue, window_message);
-
-        case Win32.WM_LBUTTONUP;
-            window_message.kind = .Mouse_Button_Released;
-            window_message.mouse_button = .Left;
-            window_message.mods = GetKeyModState();
-            window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
-            array_add(*g_message_queue, window_message);
-
-        case Win32.WM_RBUTTONUP;
-            window_message.kind = .Mouse_Button_Released;
-            window_message.mouse_button = .Right;
-            window_message.mods = GetKeyModState();
-            window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
-            array_add(*g_message_queue, window_message);
-
-        case Win32.WM_MBUTTONUP;
-            window_message.kind = .Mouse_Button_Released;
-            window_message.mouse_button = .Middle;
-            window_message.mods = GetKeyModState();
-            window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
-            array_add(*g_message_queue, window_message);
-
-        case Win32.WM_LBUTTONDBLCLK;
-            window_message.kind = .Mouse_Button_Repeated;
-            window_message.mouse_button = .Left;
-            window_message.mods = GetKeyModState();
-            window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
-            array_add(*g_message_queue, window_message);
-
-        case Win32.WM_RBUTTONDBLCLK;
-            window_message.kind = .Mouse_Button_Repeated;
-            window_message.mouse_button = .Right;
-            window_message.mods = GetKeyModState();
-            window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
-            array_add(*g_message_queue, window_message);
-
-        case Win32.WM_MBUTTONDBLCLK;
-            window_message.kind = .Mouse_Button_Repeated;
-            window_message.mouse_button = .Middle;
-            window_message.mods = GetKeyModState();
-            window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
-            array_add(*g_message_queue, window_message);
-
-        case Win32.WM_MOUSEHWHEEL; #through;
-        case Win32.WM_MOUSEWHEEL;
-            window_message.kind = .Mouse_Wheel;
-            window_message.mods = GetKeyModState();
-            if msg == Win32.WM_MOUSEHWHEEL
-                window_message.mouse_wheel_x = Win32.HIWORD(wparam) / 120.0;
-            else
-                window_message.mouse_wheel_y = Win32.HIWORD(wparam) / 120.0;
-            window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
-            array_add(*g_message_queue, window_message);
-
-        case Win32.WM_MOUSEMOVE;
-            if window.mouse_is_outside
-            {
-                window.mouse_is_outside = false;
-
-                // Watch for the next WM_MOUSELEAVE event
-                track : Win32.TRACKMOUSEEVENT;
-                track.cbSize = size_of(Win32.TRACKMOUSEEVENT);
-                track.hwndTrack = hwnd;
-                track.dwFlags = 0x02;
-                Win32.TrackMouseEvent(*track);
-
-                enter_message := window_message;
-                enter_message.kind = .Mouse_Entered_Window;
-                enter_message.mods = GetKeyModState();
-                enter_message.mouse_x, enter_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
-                array_add(*g_message_queue, enter_message);
-            }
-
-            window_message.kind = .Mouse_Moved;
-            window_message.mods = GetKeyModState();
-            window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
-            array_add(*g_message_queue, window_message);
-
-        case Win32.WM_MOUSELEAVE;
-            window.mouse_is_outside = true;
-            window_message.kind = .Mouse_Left_Window;
-            array_add(*g_message_queue, window_message);
-
-        case Win32.WM_INPUT;
-            rawinput : Win32.RAWINPUT;
-
-            size := cast(u32) size_of(Win32.RAWINPUT);
-            Win32.GetRawInputData(cast(Win32.HRAWINPUT) lparam, .RID_INPUT, *rawinput, *size, size_of(Win32.RAWINPUTHEADER));
-
-            if rawinput.header.dwType == xx Win32.RID_DEVICE_INFO_TYPE.RIM_TYPEMOUSE
-            {
-                mouse := rawinput.data.mouse;
-                if mouse.usFlags & Win32.MOUSE_MOVE_RELATIVE == Win32.MOUSE_MOVE_RELATIVE
-                && (mouse.lLastX != 0 || mouse.lLastY != 0)
-                {
-                    window_message.kind = .Mouse_Raw_Moved;
-                    window_message.mods = GetKeyModState();
-                    window_message.mouse_delta_x = mouse.lLastX;
-                    window_message.mouse_delta_y = mouse.lLastY;
-
-                    array_add(*g_message_queue, window_message);
-
-                    return 0;
-                }
-            }
-
+        if msg == Win32.WM_SYSKEYDOWN || msg == Win32.WM_SYSKEYUP
             return Win32.DefWindowProcW(hwnd, msg, wparam, lparam);
 
-        case Win32.WM_SETCURSOR;
-            if Win32.LOWORD(lparam) == Win32.HTCLIENT
+    case Win32.WM_LBUTTONDOWN;
+        window_message.kind = .Mouse_Button_Pressed;
+        window_message.mouse_button = .Left;
+        window_message.mods = GetKeyModState();
+        window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_RBUTTONDOWN;
+        window_message.kind = .Mouse_Button_Pressed;
+        window_message.mouse_button = .Right;
+        window_message.mods = GetKeyModState();
+        window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_MBUTTONDOWN;
+        window_message.kind = .Mouse_Button_Pressed;
+        window_message.mouse_button = .Middle;
+        window_message.mods = GetKeyModState();
+        window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_LBUTTONUP;
+        window_message.kind = .Mouse_Button_Released;
+        window_message.mouse_button = .Left;
+        window_message.mods = GetKeyModState();
+        window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_RBUTTONUP;
+        window_message.kind = .Mouse_Button_Released;
+        window_message.mouse_button = .Right;
+        window_message.mods = GetKeyModState();
+        window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_MBUTTONUP;
+        window_message.kind = .Mouse_Button_Released;
+        window_message.mouse_button = .Middle;
+        window_message.mods = GetKeyModState();
+        window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_LBUTTONDBLCLK;
+        window_message.kind = .Mouse_Button_Repeated;
+        window_message.mouse_button = .Left;
+        window_message.mods = GetKeyModState();
+        window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_RBUTTONDBLCLK;
+        window_message.kind = .Mouse_Button_Repeated;
+        window_message.mouse_button = .Right;
+        window_message.mods = GetKeyModState();
+        window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_MBUTTONDBLCLK;
+        window_message.kind = .Mouse_Button_Repeated;
+        window_message.mouse_button = .Middle;
+        window_message.mods = GetKeyModState();
+        window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_MOUSEHWHEEL; #through;
+    case Win32.WM_MOUSEWHEEL;
+        window_message.kind = .Mouse_Wheel;
+        window_message.mods = GetKeyModState();
+        if msg == Win32.WM_MOUSEHWHEEL
+            window_message.mouse_wheel_x = Win32.HIWORD(wparam) / 120.0;
+        else
+            window_message.mouse_wheel_y = Win32.HIWORD(wparam) / 120.0;
+        window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_MOUSEMOVE;
+        if window.mouse_is_outside
+        {
+            window.mouse_is_outside = false;
+
+            // Watch for the next WM_MOUSELEAVE event
+            track : Win32.TRACKMOUSEEVENT;
+            track.cbSize = size_of(Win32.TRACKMOUSEEVENT);
+            track.hwndTrack = hwnd;
+            track.dwFlags = 0x02;
+            Win32.TrackMouseEvent(*track);
+
+            enter_message := window_message;
+            enter_message.kind = .Mouse_Entered_Window;
+            enter_message.mods = GetKeyModState();
+            enter_message.mouse_x, enter_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
+            array_add(*g_message_queue, enter_message);
+        }
+
+        window_message.kind = .Mouse_Moved;
+        window_message.mods = GetKeyModState();
+        window_message.mouse_x, window_message.mouse_y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_MOUSELEAVE;
+        window.mouse_is_outside = true;
+        window_message.kind = .Mouse_Left_Window;
+        array_add(*g_message_queue, window_message);
+
+    case Win32.WM_INPUT;
+        rawinput : Win32.RAWINPUT;
+
+        size := cast(u32) size_of(Win32.RAWINPUT);
+        Win32.GetRawInputData(cast(Win32.HRAWINPUT) lparam, .RID_INPUT, *rawinput, *size, size_of(Win32.RAWINPUTHEADER));
+
+        if rawinput.header.dwType == xx Win32.RID_DEVICE_INFO_TYPE.RIM_TYPEMOUSE
+        {
+            mouse := rawinput.data.mouse;
+            if mouse.usFlags & Win32.MOUSE_MOVE_RELATIVE == Win32.MOUSE_MOVE_RELATIVE
+            && (mouse.lLastX != 0 || mouse.lLastY != 0)
             {
-                Win32.SetCursor(g_cursors.all[window.cursor]);
+                window_message.kind = .Mouse_Raw_Moved;
+                window_message.mods = GetKeyModState();
+                window_message.mouse_delta_x = mouse.lLastX;
+                window_message.mouse_delta_y = mouse.lLastY;
+
+                array_add(*g_message_queue, window_message);
 
                 return 0;
             }
-
-            return Win32.DefWindowProcW(hwnd, msg, wparam, lparam);
-
-        case Win32.WM_DISPLAYCHANGE;
-            window_message.kind = .Display_Changed;
-            array_add(*g_message_queue, window_message);
-
-            return Win32.DefWindowProcW(hwnd, msg, wparam, lparam);
-
-        case;
-            return Win32.DefWindowProcW(hwnd, msg, wparam, lparam);
         }
+
+        return Win32.DefWindowProcW(hwnd, msg, wparam, lparam);
+
+    case Win32.WM_SETCURSOR;
+        if Win32.LOWORD(lparam) == Win32.HTCLIENT
+        {
+            Win32.SetCursor(g_cursors.all[window.cursor]);
+
+            return 0;
+        }
+
+        return Win32.DefWindowProcW(hwnd, msg, wparam, lparam);
+
+    case Win32.WM_DISPLAYCHANGE;
+        window_message.kind = .Display_Changed;
+        array_add(*g_message_queue, window_message);
+
+        return Win32.DefWindowProcW(hwnd, msg, wparam, lparam);
+
+    case;
+        return Win32.DefWindowProcW(hwnd, msg, wparam, lparam);
     }
 
     return 0;
@@ -1119,75 +1117,73 @@ CustomCaptionWindowProc :: (hwnd : Win32.HWND, msg : u32, wparam : Win32.WPARAM,
 
     window_message : Message;
 
-    ctx : Context;
-    push_context ctx
-    {
-        if msg ==
-        {
-        case Win32.WM_CREATE;
-            size_rect : Win32.RECT;
-            Win32.GetWindowRect(hwnd, *size_rect);
-            Win32.SetWindowPos(hwnd, null,
-                size_rect.left, size_rect.top,
-                size_rect.right - size_rect.left, size_rect.bottom - size_rect.top,
-                .SWP_FRAMECHANGED | .SWP_NOMOVE | .SWP_NOSIZE
-            );
+    push_context,defer_pop;
 
+    if msg ==
+    {
+    case Win32.WM_CREATE;
+        size_rect : Win32.RECT;
+        Win32.GetWindowRect(hwnd, *size_rect);
+        Win32.SetWindowPos(hwnd, null,
+            size_rect.left, size_rect.top,
+            size_rect.right - size_rect.left, size_rect.bottom - size_rect.top,
+            .SWP_FRAMECHANGED | .SWP_NOMOVE | .SWP_NOSIZE
+        );
+
+        return Win32.DefWindowProcW(hwnd, msg, wparam, lparam);
+
+    case Win32.WM_NCCALCSIZE;
+        if wparam == 0
             return Win32.DefWindowProcW(hwnd, msg, wparam, lparam);
 
-        case Win32.WM_NCCALCSIZE;
-            if wparam == 0
-                return Win32.DefWindowProcW(hwnd, msg, wparam, lparam);
+        frame_x := Win32.GetSystemMetrics(.SM_CXFRAME);
+        frame_y := Win32.GetSystemMetrics(.SM_CYFRAME);
+        padding := Win32.GetSystemMetrics(.SM_CXPADDEDBORDER);
+        params := cast(*Win32.NCCALCSIZE_PARAMS) lparam;
 
-            frame_x := Win32.GetSystemMetrics(.SM_CXFRAME);
-            frame_y := Win32.GetSystemMetrics(.SM_CYFRAME);
-            padding := Win32.GetSystemMetrics(.SM_CXPADDEDBORDER);
-            params := cast(*Win32.NCCALCSIZE_PARAMS) lparam;
+        client_rect := *params.rgrc[0];
+        client_rect.right  -= frame_x + padding;
+        client_rect.left   += frame_x + padding;
+        client_rect.bottom -= frame_y + padding;
 
-            client_rect := *params.rgrc[0];
-            client_rect.right  -= frame_x + padding;
-            client_rect.left   += frame_x + padding;
-            client_rect.bottom -= frame_y + padding;
+        if IsMaximized(window)
+            client_rect.top += padding * 2;
 
-            if IsMaximized(window)
-                client_rect.top += padding * 2;
+        return 0;
 
-            return 0;
+    case Win32.WM_NCHITTEST;
+        hit := Win32.DefWindowProcW(hwnd, msg, wparam, lparam);
 
-        case Win32.WM_NCHITTEST;
-            hit := Win32.DefWindowProcW(hwnd, msg, wparam, lparam);
-
-            if hit ==
-            {
-            case Win32.HTNOWHERE; #through;
-            case Win32.HTRIGHT; #through;
-            case Win32.HTLEFT; #through;
-            case Win32.HTTOPLEFT; #through;
-            case Win32.HTTOP; #through;
-            case Win32.HTTOPRIGHT; #through;
-            case Win32.HTBOTTOMRIGHT; #through;
-            case Win32.HTBOTTOM; #through;
-            case Win32.HTBOTTOMLEFT;
-                return hit;
-            }
-
-            cursor : Win32.POINT;
-            cursor.x, cursor.y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
-            Win32.ScreenToClient(hwnd, *cursor);
-
-            on_caption := window.caption_hit_test && window.caption_hit_test(window, cursor.x, cursor.y);
-            on_resize_border := cursor.y > 0 && cursor.y < Win32.GetSystemMetrics(.SM_CYFRAME) + Win32.GetSystemMetrics(.SM_CXPADDEDBORDER);
-
-            // Don't resize when we are not on the caption, because we could be on
-            // some UI elements. If we don't have a caption_hit_test, then ignore
-            // that. The user should provide a hit test function anyway...
-            if on_resize_border && (on_caption || !window.caption_hit_test)
-                return Win32.HTTOP;
-            else if on_caption
-                return Win32.HTCAPTION;
-
-            return Win32.HTCLIENT;
+        if hit ==
+        {
+        case Win32.HTNOWHERE; #through;
+        case Win32.HTRIGHT; #through;
+        case Win32.HTLEFT; #through;
+        case Win32.HTTOPLEFT; #through;
+        case Win32.HTTOP; #through;
+        case Win32.HTTOPRIGHT; #through;
+        case Win32.HTBOTTOMRIGHT; #through;
+        case Win32.HTBOTTOM; #through;
+        case Win32.HTBOTTOMLEFT;
+            return hit;
         }
+
+        cursor : Win32.POINT;
+        cursor.x, cursor.y = Win32.LOWORD(lparam), Win32.HIWORD(lparam);
+        Win32.ScreenToClient(hwnd, *cursor);
+
+        on_caption := window.caption_hit_test && window.caption_hit_test(window, cursor.x, cursor.y);
+        on_resize_border := cursor.y > 0 && cursor.y < Win32.GetSystemMetrics(.SM_CYFRAME) + Win32.GetSystemMetrics(.SM_CXPADDEDBORDER);
+
+        // Don't resize when we are not on the caption, because we could be on
+        // some UI elements. If we don't have a caption_hit_test, then ignore
+        // that. The user should provide a hit test function anyway...
+        if on_resize_border && (on_caption || !window.caption_hit_test)
+            return Win32.HTTOP;
+        else if on_caption
+            return Win32.HTCAPTION;
+
+        return Win32.HTCLIENT;
     }
 
     return WindowProc(hwnd, msg, wparam, lparam);

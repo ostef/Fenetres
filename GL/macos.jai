@@ -153,24 +153,21 @@ DestroyContext :: inline (ctx : GLContext) #no_context
 
 MakeCurrent :: inline (window : *Window, ctx : GLContext) #no_context
 {
-    x : Context;
-    push_context, defer_pop x;
+    push_context, defer_pop;
 
     ctx.makeCurrentContext(ctx);
 }
 
 GetCurrentContext :: inline () -> GLContext #must #no_context
 {
-    c : Context;
-    push_context, defer_pop c;
+    push_context, defer_pop;
 
     return NSOpenGLContext.currentContext();
 }
 
 GetCurrentWindow :: inline () -> *Window #must, non_fenetres_window : bool #no_context
 {
-    c : Context;
-    push_context, defer_pop c;
+    push_context, defer_pop;
 
     ctx := GetCurrentContext();
     if !ctx
@@ -191,8 +188,7 @@ GetCurrentWindow :: inline () -> *Window #must, non_fenetres_window : bool #no_c
 
 SwapBuffers :: inline (window : *Window) #no_context
 {
-    c : Context;
-    push_context, defer_pop c;
+    push_context, defer_pop;
 
     view := cast(*LightweightOpenGLView) window.contentView(window);
     if !view
@@ -203,8 +199,7 @@ SwapBuffers :: inline (window : *Window) #no_context
 
 SetSwapInterval :: inline (interval : s32) -> bool #no_context
 {
-    c : Context;
-    push_context, defer_pop c;
+    push_context, defer_pop;
 
     ctx := NSOpenGLContext.currentContext();
     if !ctx
@@ -217,8 +212,7 @@ SetSwapInterval :: inline (interval : s32) -> bool #no_context
 
 GetSwapInterval :: inline () -> s32 #must #no_context
 {
-    c : Context;
-    push_context, defer_pop c;
+    push_context, defer_pop;
 
     ctx := NSOpenGLContext.currentContext();
     if !ctx
