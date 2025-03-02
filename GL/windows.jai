@@ -19,8 +19,6 @@ GetProcAddress :: Win32.wglGetProcAddress;
 
 CreateContext :: inline (window : *Window, flags := GLContextFlags.Multi_Sampled, major_version : s32 = 0, minor_version : s32 = 0, share_context : GLContext = null) -> GLContext #must
 {
-    #import "GL";
-
     hdc := Win32.GetDC(window.hwnd);
     pfd : Win32.PIXELFORMATDESCRIPTOR;
     pfd.nSize = size_of(Win32.PIXELFORMATDESCRIPTOR);

@@ -1,5 +1,7 @@
+#module_parameters(ENABLE_ALL_EXTENSIONS := false);
+
 #import "Fenetres";
-#import "GL";
+#import "GL" (ENABLE_ALL_EXTENSIONS=ENABLE_ALL_EXTENSIONS);
 
 #if OS ==
 {
@@ -43,14 +45,32 @@ LoadGL :: () -> bool
 
     }
 
+    LoadGLFunctionPointers(*gl);
+
+    // Make sure we also load the function pointers for the instantiation of gl
+    // when someone #imports "GL" without any module parameter, which is the most
+    // common case of importing the GL module.
+    // This is a hack, of course
+    #if ENABLE_ALL_EXTENSIONS
+    {
+        Normal_GL :: #import "GL";
+        LoadGLFunctionPointers(*Normal_GL.gl);
+    }
+
+    return true;
+}
+
+#scope_file
+
+LoadGLFunctionPointers :: (procs : *$T)
+{
     // Copy-Pasta from the GL module, which does not load function
     // pointers if gl_get_version returns 0, even though this does
     // not prevent us from loading function pointers on Linux
     Compiler :: #import "Compiler";
     #import "String";
 
-    procs := *gl;
-    info_struct := type_info(GL_Procedures);
+    info_struct := type_info(T);
 
     dest_bytes := cast(*u8) procs;
     table := Compiler.get_type_table();
@@ -110,6 +130,4 @@ LoadGL :: () -> bool
             }
         }
     }
-
-    return true;
 }
