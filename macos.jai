@@ -149,8 +149,7 @@ WindowDelegate :: struct
 
     windowWillClose :: (using self : *WindowDelegate, sel : Selector, notification : *NSNotification) #c_call
     {
-        ctx : Context;
-        push_context, defer_pop ctx;
+        push_context,defer_pop;
 
         ns_window := cast(*NSWindow) notification.object(notification);
         window := GetWindowFromPlatformHandle(ns_window);
@@ -166,8 +165,7 @@ WindowDelegate :: struct
 
     windowDidResize :: (using self : *WindowDelegate, sel : Selector, notification : *NSNotification) #c_call
     {
-        ctx : Context;
-        push_context, defer_pop ctx;
+        push_context,defer_pop;
 
         ns_window := cast(*NSWindow) notification.object(notification);
         window := GetWindowFromPlatformHandle(ns_window);
@@ -185,8 +183,7 @@ WindowDelegate :: struct
 
     windowDidMove :: (using self : *WindowDelegate, sel : Selector, notification : *NSNotification) #c_call
     {
-        ctx : Context;
-        push_context, defer_pop ctx;
+        push_context,defer_pop;
 
         ns_window := cast(*NSWindow) notification.object(notification);
         window := GetWindowFromPlatformHandle(ns_window);
@@ -203,8 +200,7 @@ WindowDelegate :: struct
 
     windowDidMiniaturize :: (using self : *WindowDelegate, sel : Selector, notification : *NSNotification) #c_call
     {
-        ctx : Context;
-        push_context, defer_pop ctx;
+        push_context,defer_pop;
 
         ns_window := cast(*NSWindow) notification.object(notification);
         window := GetWindowFromPlatformHandle(ns_window);
@@ -222,8 +218,7 @@ WindowDelegate :: struct
 
     windowDidEnterFullscreen :: (using self : *WindowDelegate, sel : Selector, notification : *NSNotification) #c_call
     {
-        ctx : Context;
-        push_context, defer_pop ctx;
+        push_context,defer_pop;
 
         ns_window := cast(*NSWindow) notification.object(notification);
         window := GetWindowFromPlatformHandle(ns_window);
@@ -246,8 +241,7 @@ WindowDelegate :: struct
 
     windowDidBecomeKey :: (using self : *WindowDelegate, sel : Selector, notification : *NSNotification) #c_call
     {
-        ctx : Context;
-        push_context, defer_pop ctx;
+        push_context,defer_pop;
 
         ns_window := cast(*NSWindow) notification.object(notification);
         window := GetWindowFromPlatformHandle(ns_window);
@@ -263,8 +257,7 @@ WindowDelegate :: struct
 
     windowDidResignKey :: (using self : *WindowDelegate, sel : Selector, notification : *NSNotification) #c_call
     {
-        ctx : Context;
-        push_context, defer_pop ctx;
+        push_context,defer_pop;
 
         ns_window := cast(*NSWindow) notification.object(notification);
         window := GetWindowFromPlatformHandle(ns_window);
@@ -434,8 +427,7 @@ SetWindowTitle :: inline (window : *Window, title : string)
 
 GetWindowScaleFactor :: inline (window : *Window) -> float #must #no_context
 {
-    ctx : Context;
-    push_context, defer_pop ctx;
+    push_context, defer_pop;
 
     view := window.contentView(window);
 
@@ -444,55 +436,46 @@ GetWindowScaleFactor :: inline (window : *Window) -> float #must #no_context
 
 GetWindowPosition :: inline (window : *Window) -> x : s32, y : s32 #no_context
 {
-    ctx : Context;
-    push_context ctx
-    {
-        rect := window.frame(window);
-        position := InvertY(GetWindowScreen(window), rect.origin);
+    push_context, defer_pop;
 
-        return xx position.x, xx (position.y - rect.size.height);
-    }
+    rect := window.frame(window);
+    position := InvertY(GetWindowScreen(window), rect.origin);
+
+    return xx position.x, xx (position.y - rect.size.height);
 }
 
 SetWindowPosition :: inline (window : *Window, x : s32, y : s32) #no_context
 {
-    ctx : Context;
-    push_context ctx
-    {
-        _, height := GetWindowSize(window);
-        point := InvertY(GetWindowScreen(window), .{xx x, xx y});
-        point.y -= xx height;
-        window.setFrameOrigin(window, point);
-    }
+    push_context, defer_pop;
+
+    _, height := GetWindowSize(window);
+    point := InvertY(GetWindowScreen(window), .{xx x, xx y});
+    point.y -= xx height;
+    window.setFrameOrigin(window, point);
 }
 
 GetWindowSize :: inline (window : *Window) -> width : s32, height : s32 #no_context
 {
-    ctx : Context;
-    push_context ctx
-    {
-        rect := window.frame(window);
+    push_context, defer_pop;
 
-        return xx rect.size.width, xx rect.size.height;
-    }
+    rect := window.frame(window);
+
+    return xx rect.size.width, xx rect.size.height;
 }
 
 SetWindowSize :: inline (window : *Window, width : s32, height : s32) #no_context
 {
-    ctx : Context;
-    push_context ctx
-    {
-        rect := window.frame(window);
-        rect.size.width = xx width;
-        rect.size.height = xx height;
-        window.setFrame(window, rect, NO);
-    }
+    push_context, defer_pop;
+
+    rect := window.frame(window);
+    rect.size.width = xx width;
+    rect.size.height = xx height;
+    window.setFrame(window, rect, NO);
 }
 
 GetViewportPosition :: inline (window : *Window) -> width : s32, height : s32 #no_context
 {
-    ctx : Context;
-    push_context, defer_pop ctx;
+    push_context, defer_pop;
 
     x, y := GetWindowPosition(window);
 
@@ -501,8 +484,7 @@ GetViewportPosition :: inline (window : *Window) -> width : s32, height : s32 #n
 
 SetViewportPosition :: inline (window : *Window, x : s32, y : s32) #no_context
 {
-    ctx : Context;
-    push_context, defer_pop ctx;
+    push_context, defer_pop;
 
     _, height := GetViewportSize(window);
     point := InvertY(GetWindowScreen(window), .{xx x, xx y});
@@ -512,8 +494,7 @@ SetViewportPosition :: inline (window : *Window, x : s32, y : s32) #no_context
 
 GetViewportSize :: inline (window : *Window) -> width : s32, height : s32 #no_context
 {
-    ctx : Context;
-    push_context, defer_pop ctx;
+    push_context, defer_pop;
 
     view := window.contentView(window);
     rect := view.frame(view);
@@ -523,8 +504,7 @@ GetViewportSize :: inline (window : *Window) -> width : s32, height : s32 #no_co
 
 SetViewportSize :: inline (window : *Window, width : s32, height : s32) #no_context
 {
-    ctx : Context;
-    push_context, defer_pop ctx;
+    push_context, defer_pop;
 
     rect := window.frame(window);
     rect.size.width = xx width;
@@ -534,8 +514,7 @@ SetViewportSize :: inline (window : *Window, width : s32, height : s32) #no_cont
 
 GetFocusedWindow :: () -> *Window #must, non_fenetres_window_focused : bool #no_context
 {
-    ctx : Context;
-    push_context, defer_pop ctx;
+    push_context, defer_pop;
 
     ns_window := NSApp.keyWindow(NSApp);
     if !ns_window
@@ -548,8 +527,7 @@ GetFocusedWindow :: () -> *Window #must, non_fenetres_window_focused : bool #no_
 
 SetFocusedWindow :: inline (window : *Window) #no_context
 {
-    ctx : Context;
-    push_context, defer_pop ctx;
+    push_context, defer_pop;
 
     window.makeKeyAndOrderFront(window, null);
 }
@@ -568,8 +546,7 @@ IsMinimized :: inline (window : *Window) -> bool #must #no_context
 // There is no maximized state on MacOS, so this just sets the window to 0,0 spanning the full screen
 Maximize :: inline (window : *Window) #no_context
 {
-    ctx : Context;
-    push_context, defer_pop ctx;
+    push_context, defer_pop;
 
     screen := GetWindowScreen(window);
     screen_rect := screen.frame(screen);
@@ -603,8 +580,7 @@ ShowAndFocusWindow :: inline (window : *Window) #no_context
 
 GetMousePosition :: inline () -> x : s32, y : s32 #no_context
 {
-    ctx : Context;
-    push_context, defer_pop ctx;
+    push_context, defer_pop;
 
     window := NSApp.keyWindow(NSApp);
     if !window
@@ -646,8 +622,7 @@ WindowToScreenPosition :: inline (window : *Window, x : s32, y : s32) -> x : s32
 
 GetMousePosition :: inline (window : *Window) -> x : s32, y : s32 #no_context
 {
-    ctx : Context;
-    push_context, defer_pop ctx;
+    push_context, defer_pop;
 
     _, height := GetViewportSize(window);
     point := window.mouseLocationOutsideOfEventStream(window);
@@ -955,8 +930,7 @@ g_cursor_hidden : bool;
 
 SetCursor :: inline (window : *Window, cursor : SystemCursor) #no_context
 {
-    ctx : Context;
-    push_context, defer_pop ctx;
+    push_context, defer_pop;
 
     if cursor != .None && cursor != .Count && g_cursor_hidden
     {
