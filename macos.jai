@@ -5,7 +5,6 @@
 #import "Basic";
 #import "Objective_C";
 #import "Objective_C/AppKit";
-#import "Objective_C/LightweightRenderingView";
 
 Window :: struct
 {
@@ -57,7 +56,6 @@ InitObjectiveCStuff :: ()
 
     init_objective_c();
     init_app_kit();
-    init_lightweight_rendering_view();
     init_objective_c_selector_struct(*g_selector);
 
     RegisterObjectiveCClass(AppDelegate, NSObject);
